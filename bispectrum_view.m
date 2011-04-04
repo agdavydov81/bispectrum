@@ -22,7 +22,7 @@ function bispectrum_view(cfg)
 		save(cfg_file,'cfg');
 	end
 
-	%% Подготовка сигнала
+	%% Signal preparation
 	[x,fs]=wavread(cfg.file_name);
 	x(:,2:end)=[];
 	
@@ -40,7 +40,7 @@ function bispectrum_view(cfg)
 	frame.size=round(cfg.frame_size*fs);
 	frame.shift=round(cfg.frame_shift*fs);
 
-	%% Отображение сигнала
+	%% Waveform display
 	[fig_file_path,fig_file_name]=fileparts(cfg.file_name); %#ok<ASGLU>
 	fig=figure(	'NumberTitle','off', 'Name',fig_file_name, 'ToolBar','figure', 'Units','normalized', ...
 				'Position',[0 0 1 1], 'WindowButtonDownFcn',@OnMouseDown, 'KeyPressFcn',@OnKeyPress);
@@ -57,7 +57,7 @@ function bispectrum_view(cfg)
 	stat_caret=line(zeros(1,5), stat_ylim([1 2 2 1 1]), 'Color','k', 'LineWidth',1.5);
 	caret=line([0 0], ylim(), 'Color','r', 'LineWidth',2);
 
-	%% Отображение спектрограммы
+	%% Spectrogram display
 	spectrum_subplot=axes('Units','normalized', 'Position',[0.06 0.52 0.92 0.20]);
 	spec_fr_size=min(frame.size,size(x,1)-1);
 	spec_fr_over=min(frame.size-frame.shift,spec_fr_size-1);
@@ -86,7 +86,7 @@ function bispectrum_view(cfg)
 	view(stat_axes(2), [0 90]);
 
 
-	%% Настройка GUI
+	%% GUI setup
 	ctrl_pos=get(signal_subplot,'Position');
 	btn_play=uicontrol('Parent',fig, 'Style','pushbutton', 'String','Play view', 'Units','normalized', ...
 			'Position',[ctrl_pos(1)+ctrl_pos(3)-0.075 ctrl_pos(2)+ctrl_pos(4) 0.075 0.03], 'Callback', @OnPlaySignal);
@@ -108,7 +108,7 @@ function bispectrum_view(cfg)
 		'stat_rect',[spec_pos(1:2) sig_pos(1:2)+sig_pos(3:4)], 'stat_caret',stat_caret, 'stat_axes',stat_axes);
 	guidata(fig,data);
 
-	%% Отображение текущих оценок
+	%% Current estimations display
 	UpdateFrameStat(data, 0);
 
 	pause(0.2);
@@ -116,11 +116,11 @@ function bispectrum_view(cfg)
 end
 
 function bispectrum_mean(x, fs, cfg, fig_file_name)
-	%% Вычисление среднего биспектра и его отображение
+	%% Mean bispectum calculation and display
 	fr_sz=round([cfg.frame_shift cfg.frame_size]*fs);
 	obs_sz=fix((size(x,1)-fr_sz(2))/fr_sz(1)+1);
 
-	wait_fig=waitbar(0, 'Вычисление среднего биспектра ...', 'Name',['Mean: ' fig_file_name], 'CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
+	wait_fig=waitbar(0, 'Mean bispectrum calculation ...', 'Name',['Mean: ' fig_file_name], 'CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
 	setappdata(wait_fig,'canceling',0);
 	wait_clk=clock();
 	
@@ -134,7 +134,7 @@ function bispectrum_mean(x, fs, cfg, fig_file_name)
 
 		wait_left=etime(clock(), wait_clk);
 		x_left=i+fr_sz(1);
-		wait_msg=sprintf('Пожалуйста подождите %.1f с', wait_left*(size(x,1)-x_left)/x_left );
+		wait_msg=sprintf('Plase wait %.1f s.', wait_left*(size(x,1)-x_left)/x_left );
 		waitbar(x_left/size(x,1), wait_fig, wait_msg);
 		if getappdata(wait_fig,'canceling')
 			delete(wait_fig);
@@ -145,7 +145,7 @@ function bispectrum_mean(x, fs, cfg, fig_file_name)
 	delete(wait_fig);
 
 
-	%% Отображение среднего биспектра
+	%% Mean bispecrum display
 	figure(	'NumberTitle','off', 'Name',['Mean: ' fig_file_name], 'Units','normalized', 'Position',[0 0 1 1]);
 
 	bispec_power=abs(bispec);
@@ -179,7 +179,7 @@ end
 function [bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame, fs, cfg)
 	cur_frame=cur_frame.*hamming(length(cur_frame));
 
-	%% Анализ ошибки предсказания вместо сигнала
+	%% Prediction error analysis insted of signal analysis
 	if strcmp(cfg.calc_obj,'lpc_error')
 		tmp_ord=round(fs/1000)+2;
 		tmp_a=aryule(cur_frame, tmp_ord);
@@ -194,7 +194,7 @@ function [bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame,
 	end
 
 	if nargout>4 || strcmp(cfg.calc_obj,'lpc_envelope')
-		%% LPC Спектр текущего кадра
+		%% Current frame LPC spectrum
 		[cur_a, cur_e_power]=lpc(cur_frame, round(fs/1000)+2);
 		if any(isnan(cur_a))
 			cur_a(:)=0;
@@ -214,7 +214,7 @@ function [bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame,
 	max_freq=cfg.max_freq([2 1])*2/fs;
 	max_freq=min(max(0,max_freq),[0.5 1]);
 
-	%% Спектр текущего кадра
+	%% Current frame FFT spectrum
 	cur_fft=fft(cur_frame, NFFT);
 	cur_fft(fix(length(cur_fft)/2+2):end)=[];
 
@@ -227,12 +227,12 @@ function [bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame,
 			bisp_obj=freqz(1, cur_a, NFFT/2);
 	end
 
-	%% Диапазон вычисления биспектра
+	%% Bispecrum calculation range
 	max_freq=fix(max_freq*(length(cur_fft)-1))+1;
 	bispec_f1=((1:max_freq(1))-1)*fs/2/(length(cur_fft)-1);
 	bispec_f2=((1:max_freq(2))-1)*fs/2/(length(cur_fft)-1);
 
-	%% Вычисление биспектра в заданном диапазоне частот
+	%% Calculate bispectrum in given range
 	bispec=zeros(max_freq(1), max_freq(2))/0;
 	for i=1:size(bispec,1)
 		ind=i:min(length(bisp_obj)-i+1,max_freq(2));
@@ -241,9 +241,9 @@ function [bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame,
 end
 
 function UpdateFrameStat(data, x_pos)
-	% Функция отображения кратковременных оценок на кадре
+	% Function for short-time estimations display
 
-	%% Определение текущего кадра
+	%% Current frame selection
 	fs=data.user_data.player.SampleRate;
 	stat_axes=data.user_data.stat_axes;
 
@@ -255,18 +255,18 @@ function UpdateFrameStat(data, x_pos)
 		x_pos=[max(1, data.user_data.player.TotalSamples-data.user_data.frame.size) data.user_data.player.TotalSamples];
 	end
 
-	%% Выделение позиции текущего кадра на графиках
+	%% Select current frame in plots
 	stat_rg=[x_pos(1) x_pos(2)-1]/fs;
 	for i=1:length(data.user_data.stat_caret)
 		set(data.user_data.stat_caret(i), 'XData',stat_rg([1 1 2 2 1]));
 	end
 
-	%% Биспектральный анализ
+	%% Current frame bispectrum calculation
 	cur_frame=data.user_data.signal(x_pos(1):x_pos(2)-1);
 	[bispec, bispec_f1, bispec_f2, cur_fft, cur_a]=analyse_frame(cur_frame, fs, data.user_data.cfg);
 	fft_freq=linspace(0, fs/2, length(cur_fft));
 
-	%% Отображение FFT спектра и LPC спектров текущего кадра
+	%% Current frame FFT and LPC spectrum display
 	[cur_H, cur_w]=freqz(1,cur_a,512);
 	plot(stat_axes(1),	fft_freq,max(-2000,20*log10(abs(cur_fft))),'b', ...
 						cur_w*fs/2/pi,20*log10(abs(cur_H)),'r');
@@ -275,7 +275,7 @@ function UpdateFrameStat(data, x_pos)
 	legend(stat_axes(1), 'boxoff');
 	axis(stat_axes(1), [0 fs/2 data.user_data.spec_minmax]);
 
-	%% Отображение биспектра
+	%% Current frame bispecrum estimation display
 	bispec_power=abs(bispec);
 	bispec_phase=angle(bispec);
 	nan_mask=isnan(bispec_power);
@@ -405,9 +405,8 @@ function OnKeyPress(hObject, eventdata)
 	end
 end
 
-
 function [cfg, press_OK]=settings_dlg(cfg)
-	dlg.handle=dialog('Name','Настройки', 'Units','pixels', 'Position',get(0,'ScreenSize'));
+	dlg.handle=dialog('Name','Settings', 'Units','pixels', 'Position',get(0,'ScreenSize'));
 	set(dlg.handle,'Units','characters');
 	scr_sz=get(dlg.handle,'Position');
 	dlg_width=80;
@@ -417,7 +416,7 @@ function [cfg, press_OK]=settings_dlg(cfg)
 	ctrl_pos=[1.5 ctrl_pos(4)-2 ctrl_pos(3)-3 1.2   12 1.5];
 	ctrl_pos=[ctrl_pos  ctrl_pos(5)+2.5 ctrl_pos(3)-(ctrl_pos(5)+2) 1.2];
 
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Путь к звуковому файлу',  'Units','characters',  'Position',ctrl_pos(1:4),  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Path to sound file',  'Units','characters',  'Position',ctrl_pos(1:4),  'HorizontalAlignment','left');
 	ctrl_pos(2)=ctrl_pos(2)-1.6;
 
 	dlg.file_name=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',cfg.file_name,  'Units','characters',  'Position', [ctrl_pos(1) ctrl_pos(2) ctrl_pos(3)-5 ctrl_pos(6)],  'HorizontalAlignment','left',  'BackgroundColor','w');
@@ -425,32 +424,32 @@ function [cfg, press_OK]=settings_dlg(cfg)
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
 	dlg.frame_size=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_size),  'Units','characters',  'Position', ctrl_pos([1 2 5 6]),  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер кадра анализа (с)',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Frame size (s)',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
 	dlg.frame_shift=		uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_shift),  'Units','characters',  'Position', ctrl_pos([1 2 5 6]),  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер шага анализа (с)',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Frame shift (s)',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
 	dlg.fft_size=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.fft_size),  'Units','characters',  'Position', ctrl_pos([1 2 5 6]),  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер БПФ',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','FFT size',  'Units','characters',  'Position',ctrl_pos([7 2 8 9]),  'HorizontalAlignment','left');
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
 	dlg.max_freq1=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.max_freq(1)),  'Units','characters',  'Position', ctrl_pos([1 2 5 6]),  'HorizontalAlignment','right',  'BackgroundColor','w');
 	dlg.max_freq2=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.max_freq(2)),  'Units','characters',  'Position', [sum(ctrl_pos([1 5]))+1 ctrl_pos([2 5 6])],  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Диапазон вычисления биспектра (Гц)',  'Units','characters',  'Position',[sum(ctrl_pos([7 5]))+1 ctrl_pos(2) ctrl_pos(8)-ctrl_pos(5)-1 ctrl_pos(9)],  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Bispectrum frequency range (Hz)',  'Units','characters',  'Position',[sum(ctrl_pos([7 5]))+1 ctrl_pos(2) ctrl_pos(8)-ctrl_pos(5)-1 ctrl_pos(9)],  'HorizontalAlignment','left');
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
-	dlg.is_preemphasis=		uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Выполнить предискажение',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_preemphasis);
+	dlg.is_preemphasis=		uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Preemphasis',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_preemphasis);
 	ctrl_pos(2)=ctrl_pos(2)-1.6;
 
 	dlg.calc_obj_grp=		uibuttongroup('Parent',dlg.handle, 'Units','characters', 'Position',[ctrl_pos(1) ctrl_pos(2)-4 ctrl_pos(3) 5]);
 	radio_pos=[1.2 3.2 ctrl_pos(3)-2*ctrl_pos(1) ctrl_pos(4)];
-	dlg.is_calc_fft=		uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','Анализировать БПФ спектр', 'Units','characters', 'Position',radio_pos);
+	dlg.is_calc_fft=		uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','Signal analysis', 'Units','characters', 'Position',radio_pos);
 	radio_pos(2)=radio_pos(2)-1.4;
-	dlg.is_calc_lpc_err=	uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','Анализировать ошибку предсказания', 'Units','characters', 'Position',radio_pos);
+	dlg.is_calc_lpc_err=	uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','LPC prediction error analysis', 'Units','characters', 'Position',radio_pos);
 	radio_pos(2)=radio_pos(2)-1.4;
-	dlg.is_calc_lpc_env=	uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','Анализировать огибающую спектра', 'Units','characters', 'Position',radio_pos);
+	dlg.is_calc_lpc_env=	uicontrol('Parent',dlg.calc_obj_grp, 'Style','Radio', 'String','Spectrum envelope analysis', 'Units','characters', 'Position',radio_pos);
 	switch(cfg.calc_obj)
 		case 'fft'
 			set(dlg.calc_obj_grp,'SelectedObject',dlg.is_calc_fft);
@@ -462,15 +461,15 @@ function [cfg, press_OK]=settings_dlg(cfg)
 
 	ctrl_pos(2)=ctrl_pos(2)-5.8;
 
-	dlg.is_bispec_view_log=	uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Отображать биспектр в дБ',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_bispec_view_log);
+	dlg.is_bispec_view_log=	uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Display bispectrum in dB',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_bispec_view_log);
 	ctrl_pos(2)=ctrl_pos(2)-2.1;
 
-	dlg.is_bispec_view_contour=uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Контурное отображение биспектра',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_bispec_view_contour);
+	dlg.is_bispec_view_contour=uicontrol('Parent',dlg.handle,  'Style','checkbox',  'String','Bispectrum contour display',  'Units','characters',  'Position',ctrl_pos(1:4),  'Value',cfg.is_bispec_view_contour);
 	ctrl_pos(2)=ctrl_pos(2)-2.8;
 
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Версия 1.0.0.7 от 2011/03/18',  'Units','characters',  'Position',[ctrl_pos(1) ctrl_pos(2) ctrl_pos(3)-38 ctrl_pos(4)],  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Version 1.0.0.7(en) 2011/03/18',  'Units','characters',  'Position',[ctrl_pos(1) ctrl_pos(2) ctrl_pos(3)-38 ctrl_pos(4)],  'HorizontalAlignment','left');
 	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','OK',      'Units','characters',  'Position',[ctrl_pos(1)+ctrl_pos(3)-37 ctrl_pos(2) 18 2],  'Callback',@OnSettingsDlgOK);
-	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','Отмена',  'Units','characters',  'Position',[ctrl_pos(1)+ctrl_pos(3)-18 ctrl_pos(2) 18 2],  'Callback',@OnSettingsDlgCancel);
+	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','Cancel',  'Units','characters',  'Position',[ctrl_pos(1)+ctrl_pos(3)-18 ctrl_pos(2) 18 2],  'Callback',@OnSettingsDlgCancel);
 
 	handles=guihandles(dlg.handle);
 	handles.user_data.dlg=dlg;
@@ -492,7 +491,7 @@ end
 
 function OnFileNameSel(hObject, eventdata)
 	handles=guidata(hObject);
-	[file_name,file_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Выберите файл для обработки',get(handles.user_data.dlg.file_name,'String'));
+	[file_name,file_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Select file ...',get(handles.user_data.dlg.file_name,'String'));
 	if file_name==0
 		return;
 	end
