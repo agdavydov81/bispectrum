@@ -134,7 +134,18 @@ function bispectrum_mean(x, fs, cfg, fig_file_name)
 
 		wait_left=etime(clock(), wait_clk);
 		x_left=i+fr_sz(1);
-		wait_msg=sprintf('Plase wait %.1f s.', wait_left*(size(x,1)-x_left)/x_left );
+		left_time=wait_left*(size(x,1)-x_left)/x_left;
+		left_time_s=rem(left_time,60);	left_time=fix(left_time/60);
+		left_time_m=rem(left_time,60);	left_time_h=fix(left_time/60);
+		if left_time_h>0
+			left_time_str=sprintf('%dh ',left_time_h);
+		else
+			left_time_str=[];
+		end
+		if left_time_m>0
+			left_time_str=[left_time_str sprintf('%dm ',left_time_m)]; %#ok<AGROW>
+		end
+		wait_msg=['Please wait ' left_time_str sprintf('%.0fs',left_time_s)];
 		waitbar(x_left/size(x,1), wait_fig, wait_msg);
 		if getappdata(wait_fig,'canceling')
 			delete(wait_fig);
