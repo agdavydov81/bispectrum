@@ -292,3 +292,48 @@ function [Amp,Frc,Phs]=TakeHParamsXflc(Frame,FC,FD,Dt,X) % harmonic parameters e
 	Frc=(dx(2)-dx(1))/2/pi/Dt;
 	Phs=dx(1);
 end
+
+%Вычисление гармонических парамеров при помощи стационарного фильтра
+%анализа (Илья Азаров)
+function [Amp,Frc,Phs]=TakeHParamsX_turbo(Frame,FC,FD,Dt,X)
+	%      Frame is the frame to analyze (odd value)
+	%      FC is the centre frequency of the filter (in Hz)
+	%      FD is half of the bandwidth (in Hz)
+	%      Dt is 1/FS (FS is the sample rate)
+	%      X  is relative sample to estimate (zero is the centre of the frame)
+	Ln=length(Frame);
+	Centre=floor(Ln/2)+1;
+	A=zeros(Ln+1,1);
+	B=zeros(Ln+1,1);
+
+	LInd=1:Centre+X-1;
+	RInd=(Centre+X+1):Ln+1;
+
+	Part=[sin(2*pi*Dt*FD*(Centre-LInd+X))./(Centre-LInd+X)/pi/Dt 0 sin(2*pi*Dt*FD*(Centre-RInd+X))./(Centre-RInd+X)/pi/Dt];
+	A(1:Ln+1)=Part.*cos(2*pi*Dt*FC*(((1:Ln+1)-Centre-X)));
+	B(1:Ln+1)=Part.*sin(2*pi*Dt*FC*(((1:Ln+1)-Centre-X)));
+
+	A(Centre+X)=2*FD;
+
+	Ap=Frame*A(2:Ln+1);
+	Bp=Frame*B(2:Ln+1);
+	Ap1=Frame*A(1:Ln);
+	Bp1=Frame*B(1:Ln);
+
+	Amp=((Ap*Ap+Bp*Bp)^0.5)*Dt*2;
+	dx=zeros(1,2);
+	if(Ap && Bp)
+		dx(1)=atan2(-Bp,Ap);
+	else
+		dx(1)=0;
+	end
+
+	if(Ap1 && Bp1)
+		dx(2)=atan2(-Bp1,Ap1);
+	else
+		dx(2)=0;
+	end
+	dx=unwrap(dx);
+	Frc=(dx(2)-dx(1))/2/pi/Dt;
+	Phs=dx(1);
+end
