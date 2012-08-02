@@ -1,25 +1,29 @@
 function signal_view(cfg)
 	if nargin<1
-		cfg=struct( 'frame_size',0.025, 'frame_shift',0.005, 'fft_size',512, ...
-					'preemphasis','adaptive', 'window','hamming', 'F0',[80 500], 'roots_threshold', sqrt(0.5), ...
-					'dislay_spectrogram','lpc', ... % 'dislay_spectrogram' must be either 'lpc' either 'fft'
-					'dislay_spectrogram_gray',false);
-		cfg.fs=8000; % strict sampling frequency define
-		cfg.lpc_order=12; % strict LPC order define
-
-		[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Select file for processing');
-		if dlg_name==0
-			return;
+		cfg_file_name='signal_view_cfg.mat';
+		if exist(cfg_file_name,'file')
+			load(cfg_file_name);
+		else
+			cfg=struct( 'fs',0, 'lpc_order',0, ... % 0 - auto
+						'frame_size',0.025, 'frame_shift',0.005, 'fft_size',512, ...
+						'preemphasis','adaptive', 'window','hamming', 'F0',[80 500], 'roots_threshold', sqrt(0.5), ...
+						'display_spectrogram','lpc', ... % 'display_spectrogram' must be either 'lpc' either 'fft'
+						'display_palette','antigray');
 		end
 
-		cfg.file_name=fullfile(dlg_path,dlg_name);
+		[cfg, press_OK]=settings_dlg(cfg);
+		if press_OK
+			save(cfg_file_name,'cfg');
+		else
+			return;
+		end
 	end
 
 	%% Signal preparation
 	[x,fs]=wavread(cfg.file_name);
 	x(:,2:end)=[];
 
-	if isfield(cfg,'fs') && cfg.fs~=fs
+	if isfield(cfg,'fs') && cfg.fs && cfg.fs~=fs
 		x=resample(x,cfg.fs,fs);
 	else
 		cfg.fs=fs;
@@ -30,7 +34,7 @@ function signal_view(cfg)
 
 	cfg.T0=sort(min(frame_size, round(cfg.fs./cfg.F0)));
 	
-	if not(isfield(cfg,'lpc_order'))
+	if not(isfield(cfg,'lpc_order')) || cfg.lpc_order==0
 		cfg.lpc_order=round(cfg.fs/1000)+4;
 	end
 
@@ -61,6 +65,7 @@ function signal_view(cfg)
 	roots_strong_obs=cell(frames_num,1);
 
 	is_preemphasis = isfield(cfg,'preemphasis') && not(isequal(cfg.preemphasis,0)) && not(isequal(cfg.preemphasis,'none'));
+	is_preemphasis_adaptive=false;
 	if is_preemphasis
 		is_preemphasis_adaptive=isequal(cfg.preemphasis,'adaptive');
 	end
@@ -81,7 +86,7 @@ function signal_view(cfg)
 	catch %#ok<CTCH>
 	end
 
-	if strcmp(cfg.dislay_spectrogram,'lpc')
+	if strcmp(cfg.display_spectrogram,'lpc')
 		signal_spectrogram=zeros(cfg.fft_size,frames_num);
 	end
 	x_win=window(cfg.window,frame_size);
@@ -112,7 +117,7 @@ function signal_view(cfg)
 		end
 		lsf_obs(obs_ind,:)=poly2lsf(cur_a);
 
-		if strcmp(cfg.dislay_spectrogram,'lpc')
+		if strcmp(cfg.display_spectrogram,'lpc')
 			signal_spectrogram(:,obs_ind)=20*log10(abs(freqz(1, cur_a, cfg.fft_size)));
 		end
 
@@ -134,7 +139,7 @@ function signal_view(cfg)
 			roots_weak_obs{obs_ind}=[time_obs(obs_ind)+zeros(size(cur_r)) angle(cur_r)*cfg.fs/2/pi abs(cur_r)];
 		end
 	end
-	if strcmp(cfg.dislay_spectrogram,'fft')
+	if strcmp(cfg.display_spectrogram,'fft')
 		[signal_spectrogram,freq_obs,time_obs]=spectrogram(x, frame_size, frame_size-frame_shift, cfg.fft_size*2, cfg.fs);
 		signal_spectrogram=10*log10(signal_spectrogram.*conj(signal_spectrogram));
 		time_obs=time_obs(:);
@@ -147,7 +152,7 @@ function signal_view(cfg)
 	signal_spectrogram(signal_spectrogram<spec_min)=spec_min;
 	spec_minmax=[ceil(spec_min/10-1)*10 floor(spec_max/10+1)*10];
 
-	%% Plot LPC spectrogram
+	%% Plot spectrogram
 	imagesc(time_obs,freq_obs,signal_spectrogram);
 	axis('xy');
 	axis([x_lim 0 cfg.fs/2]);
@@ -156,8 +161,8 @@ function signal_view(cfg)
 	stat_ylim=stat_ylim+0.01*diff(stat_ylim)*[1 -1];
 	stat_caret(end+1)=line(zeros(1,5), stat_ylim([1 2 2 1 1]), 0.1+zeros(1,5), 'Color','k', 'LineWidth',1.5);
 	caret(end+1)=line([0 0], ylim(), 0.1+[0 0], 'Color','r', 'LineWidth',2);
-	if cfg.dislay_spectrogram_gray
-		setcolormap([0 1 1 1; 0.4 1 1 1; 0.9 0 0 0; 1 0 0 0]);
+	if isfield(cfg,'display_palette')
+		setcolormap(cfg.display_palette);
 	end
 
 	hold('on');
@@ -177,12 +182,13 @@ function signal_view(cfg)
 	ctrl_pos=get(signal_subplot,'Position');
 	btn_play=uicontrol('Parent',fig, 'Style','pushbutton', 'String','Play view', 'Units','normalized', ...
 			'Position',[ctrl_pos(1)+ctrl_pos(3)-0.075 ctrl_pos(2)+ctrl_pos(4) 0.075 0.03], 'Callback', @OnPlaySignal);
-	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show LSF',           'Units','normalized',  'Position',[ctrl_pos(1)      ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],       'Value',true, 'Callback', @OnShowLSF);
+	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show LSF',		   'Units','normalized',  'Position',[ctrl_pos(1)	  ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	   'Value',true, 'Callback', @OnShowLSF);
 	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show strong roots',  'Units','normalized',  'Position',[ctrl_pos(1)+0.10 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],  'Value',true, 'Callback', @OnShowStrongRoots);
-	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show weak roots',    'Units','normalized',  'Position',[ctrl_pos(1)+0.20 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],  'Value',true, 'Callback', @OnShowWeakRoots);
+	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show weak roots',	'Units','normalized',  'Position',[ctrl_pos(1)+0.20 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],  'Value',true, 'Callback', @OnShowWeakRoots);
 
 	pan('xon');
 	zoom('xon');
+	zoom('off');
 	set(zoom,'ActionPostCallback',@OnZoomPan);
 	set(pan ,'ActionPostCallback',@OnZoomPan);
 
@@ -418,57 +424,221 @@ function OnKeyPress(hObject, eventdata)
 end
 
 function setcolormap(palette)
-    if ischar(palette)
-        palette=getcolormap(palette);
-    end
+	if ischar(palette)
+		palette=getcolormap(palette);
+	end
 	if isa(palette,'float') && size(palette,2)==4
 		palette=makecolormap(palette);
 	end
-    colormap(palette);
+	colormap(palette);
 end
 
 function map=getcolormap(colormaptype)
-    switch lower(colormaptype)
-        case 'anti gray'
-            map=makecolormap([    0      1   1   1;...
-                                  1      0   0   0]);
-        case 'speech'
-            map=makecolormap([    0      0   0   1;...
-                                1/3      0   1   0;...
-                                2/3      1   0   0;...
-                                  1      1   1   0]);
-        case 'fire'
-            map=makecolormap([    0      0   0   0;...
-                              0.113    0.5   0   0;...
-                              0.315      1   0   0;...
-                              0.450      1 0.5   0;...
-                              0.585      1   1   0;...
-                              0.765      1   1 0.5;...
-                                  1      1   1   1]);
-        case 'hsl'
-            map=makecolormap([    0      0   0   0;...
-                                1/7      1   0   1;...
-                                2/7      0   0   1;...
-                                3/7      0   1   1;...
-                                4/7      0 0.5   0;...
-                                5/7      1   1   0;...
-                                6/7      1   0   0;...
-                                  1      1   1   1]);
-        otherwise
-            map=colormaptype;
-    end
+	switch lower(colormaptype)
+		case 'antigray'
+			map=makecolormap([	  0   1   1   1;
+								0.4   1   1   1;
+								0.9   0   0   0;
+								  1   0   0   0]);
+		case 'speech'
+			map=makecolormap([	0	  0   0   1;...
+								1/3	  0   1   0;...
+								2/3	  1   0   0;...
+								  1	  1   1   0]);
+		case 'fire'
+			map=makecolormap([	0	  0   0   0;...
+							  0.113	0.5   0   0;...
+							  0.315	  1   0   0;...
+							  0.450	  1 0.5   0;...
+							  0.585	  1   1   0;...
+							  0.765	  1   1 0.5;...
+								  1	  1   1   1]);
+		case 'hsl'
+			map=makecolormap([	0	  0   0   0;...
+								1/7	  1   0   1;...
+								2/7	  0   0   1;...
+								3/7	  0   1   1;...
+								4/7	  0 0.5   0;...
+								5/7	  1   1   0;...
+								6/7	  1   0   0;...
+								  1	  1   1   1]);
+		otherwise
+			map=colormaptype;
+	end
 end
 
 function map=makecolormap(map_info)
-    map=zeros(64,3);
-    map(1,:)=map_info(1,2:4);
-    index=1;
-    for i=2:63
-        pos=(i-1)/63;
-        while map_info(index,1)<=pos
-            index=index+1;
-        end
-        map(i,:)=map_info(index-1,2:4)+(map_info(index,2:4)-map_info(index-1,2:4))*(pos-map_info(index-1,1))/(map_info(index,1)-map_info(index-1,1));
-    end
-    map(64,:)=map_info(end,2:4);
+	map=zeros(64,3);
+	map(1,:)=map_info(1,2:4);
+	index=1;
+	for i=2:63
+		pos=(i-1)/63;
+		while map_info(index,1)<=pos
+			index=index+1;
+		end
+		map(i,:)=map_info(index-1,2:4)+(map_info(index,2:4)-map_info(index-1,2:4))*(pos-map_info(index-1,1))/(map_info(index,1)-map_info(index-1,1));
+	end
+	map(64,:)=map_info(end,2:4);
+end
+
+function [cfg, press_OK]=settings_dlg(cfg)
+	dlg.handle=dialog('Name','Настройки SignalView', 'Units','pixels', 'Position',get(0,'ScreenSize'));
+	set(dlg.handle,'Units','characters');
+	scr_sz=get(dlg.handle,'Position');
+	dlg_width=80;
+	dlg_height=30;
+	set(dlg.handle,'Position',[round([(scr_sz(3)-dlg_width)/2 (scr_sz(4)-dlg_height)/2]) dlg_width dlg_height]);
+	ui_text_pos=get(dlg.handle, 'Position');
+	ui_text_pos=[1.5 ui_text_pos(4)-2 ui_text_pos(3)-3 1.2];
+
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Путь к звуковому файлу',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_text_pos(2)=ui_text_pos(2)-1.5;
+
+	ui_ctrl_pos=[ui_text_pos(1:3) 1.5];
+	dlg.file_name=		uicontrol('Parent',dlg.handle,  'Style','edit',  'Units','characters',  'Position', [ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-5 ui_ctrl_pos(4)],  'HorizontalAlignment','left',  'BackgroundColor','w');
+	if isfield(cfg,'file_name')
+		set(dlg.file_name, 'String',cfg.file_name);
+	end
+	dlg.file_name_btn=	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','...',  'Units','characters',  'Position', [ui_ctrl_pos(1)+ui_ctrl_pos(3)-4 ui_ctrl_pos(2) 4 ui_ctrl_pos(4)],  'Callback',@OnFileNameSel);
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	ui_ctrl_pos(3)=20;
+	ui_text_pos=[22.5 ui_text_pos(2) ui_text_pos(3)-17 ui_text_pos(4)];
+
+	dlg.fs=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.fs),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Частота дискретизации (Гц)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.lpc_order=	uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.lpc_order),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Порядок фильтра предсказания',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.frame_size=		uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_size),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер кадра анализа (с)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.frame_shift=	uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_shift),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер шага анализа (с)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.fft_size=		uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.fft_size),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Число точек БПФ',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.preemphasis=	uicontrol('Parent',dlg.handle,  'Style','edit',  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	if isnumeric(cfg.preemphasis)
+		set(dlg.preemphasis,'String',num2str(cfg.preemphasis));
+	elseif ischar(cfg.preemphasis)
+		set(dlg.preemphasis,'String',cfg.preemphasis);
+	end
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Коэффициент предискажения',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	window_popup={'bartlett' 'barthannwin' 'blackman' 'blackmanharris' 'bohmanwin' 'chebwin' 'flattopwin' 'gausswin' 'hamming' 'hann' 'kaiser' 'nuttallwin' 'parzenwin' 'rectwin' 'taylorwin' 'tukeywin' 'triang'};
+	dlg.window=		uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',window_popup, 'Value',find(strcmp(cfg.window,window_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Оконная функция',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.F0=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.F0),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Диапазон частоты основного тона (Гц)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	dlg.roots_threshold=uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.roots_threshold),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Порог амплитуды полюсов',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	display_spectrogram_popup={'fft' 'lpc'};
+	dlg.display_spectrogram=uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',display_spectrogram_popup, 'Value',find(strcmp(cfg.display_spectrogram,display_spectrogram_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Вид спектрограммы',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
+	ui_text_pos(2)=ui_text_pos(2)-2;
+
+	display_palette_popup={'antigray' 'cool' 'fire' 'hot' 'hsl' 'jet' 'speech'};
+	dlg.display_palette=uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',display_palette_popup, 'Value',find(strcmp(cfg.display_palette,display_palette_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Палитра спектрограммы',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	ui_ctrl_pos(2)=ui_ctrl_pos(2)-4;
+
+
+	ui_ctrl_pos=[ui_ctrl_pos(1:2) dlg_width-3 3];
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','(C) Давыдов Андрей (andrew.aka.manik@gmail.com)',  'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-38 ui_ctrl_pos(4)],	'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Версия 1.0.0.5 от 2012/08/02 22:31:34',			'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2)-1.2 ui_ctrl_pos(3)-38 ui_ctrl_pos(4)-1],  'HorizontalAlignment','left');
+
+	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','OK',	  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-37 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgOK);
+	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','Отмена',  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-18 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgCancel);
+
+	handles=guihandles(dlg.handle);
+	handles.dlg=dlg;
+	handles.cfg=cfg;
+	handles.press_OK=0;
+	guidata(dlg.handle,handles);
+	uiwait(dlg.handle);
+	try
+		handles=guidata(dlg.handle);
+	catch %#ok<CTCH>
+		press_OK=0;
+		return;
+	end
+	close(dlg.handle);
+	pause(0.2);
+	cfg=		handles.cfg;
+	press_OK=   handles.press_OK;
+end
+
+function OnFileNameSel(hObject, eventdata)
+	handles=guidata(hObject);
+	[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Выберите файл для обработки',get(handles.dlg.file_name,'String'));
+	if dlg_name==0
+		return;
+	end
+	set(handles.dlg.file_name,'String',fullfile(dlg_path,dlg_name));
+end
+
+function OnSettingsDlgOK(hObject, eventdata)
+	handles=guidata(hObject);
+
+	handles.cfg.file_name=			get(handles.dlg.file_name,'String');
+	handles.cfg.fs=					str2double(get(handles.dlg.fs,'String'));
+	handles.cfg.lpc_order=			round(str2double(get(handles.dlg.lpc_order,'String')));
+	handles.cfg.frame_size=			str2double(get(handles.dlg.frame_size,'String'));
+	handles.cfg.frame_shift=		str2double(get(handles.dlg.frame_shift,'String'));
+	handles.cfg.fft_size=			round(str2double(get(handles.dlg.fft_size,'String')));
+
+	val=get(handles.dlg.preemphasis,'String');
+	if strcmp(val,'adaptive')
+		handles.cfg.preemphasis=val;
+	else
+		handles.cfg.preemphasis=	str2double(val);
+	end
+
+	val=get(handles.dlg.window,'String');
+	handles.cfg.window=val{get(handles.dlg.window,'Value')};
+
+	handles.cfg.F0=					str2num(get(handles.dlg.F0,'String')); %#ok<ST2NM>
+	handles.cfg.roots_threshold=	str2double(get(handles.dlg.roots_threshold,'String'));
+
+	val=get(handles.dlg.display_spectrogram,'String');
+	handles.cfg.display_spectrogram=	val{get(handles.dlg.display_spectrogram,'Value')};
+	
+	val=get(handles.dlg.display_palette,'String');
+	handles.cfg.display_palette=	val{get(handles.dlg.display_palette,'Value')};
+	
+	handles.press_OK=1;
+	guidata(hObject, handles);
+
+	uiresume(handles.dlg.handle);
+end
+
+function OnSettingsDlgCancel(hObject, eventdata)
+	handles=guidata(hObject);
+	uiresume(handles.dlg.handle);
 end
