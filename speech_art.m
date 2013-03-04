@@ -9,7 +9,7 @@ function speech_art()
 	ax_art = axes('Parent',fig, 'Units','pixels', 'Position',[40+axis_sz+40 40 axis_sz axis_sz]);
 
 	signal.sample_rate = 11025;
-	signal.frame_size = round(0.040*signal.sample_rate);
+	signal.frame_size = round(0.030*signal.sample_rate);
 	signal.FFT_N = pow2(2+nextpow2(signal.frame_size));
 	signal.band = round([300 4000]*signal.FFT_N/signal.sample_rate);
 	signal.power_rg = [-40 20];
@@ -19,17 +19,14 @@ function speech_art()
 
 	hold(ax_spectrum, 'on');
 	gui.fft_hndl =   plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1));
-	gui.rceps_hndl = plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1), 'm');
-	gui.lpc_hndl =   plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1), 'r');
-	for li=1:signal.lpc_order
-		gui.lsf_hndl(li) = line('Parent',ax_spectrum, 'XData',[0 0],'YData',[-60 20], 'Color','r');
-	end
+	gui.rceps_hndl = plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1), 'm', 'LineWidth',2);
+	gui.lpc_hndl =   plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1), 'r', 'LineWidth',2);
 	axis(ax_spectrum, [0 signal.sample_rate/2 -60 20]);
 
 	hold(ax_art, 'on');
 	gui.snake_hndl = scatter(ax_art, -ones(1,signal.snale_length), -ones(1,signal.snale_length), ones(1,signal.snale_length), [1 0 0]);
 	gui.snake_head_hndl = scatter(ax_art, -1, -1, 1, [0 0 1], 'filled');
-	axis(ax_art, [0 pi/2 0 pi/2]);
+	axis(ax_art, [0.1 0.6 0.5 1.2]);
 
 	win = hamming(signal.frame_size);
 
@@ -52,7 +49,9 @@ function speech_art()
 		cur_frame(1:end-signal.frame_size)=[];
 
 		% Preemphasis
-		cur_frame = filter([1 -0.97],1,cur_frame);
+%		cur_frame = filter([1 -1],1,cur_frame);
+		% Adaptive preemphasis
+		cur_frame = filter(lpc(cur_frame,1),1,cur_frame);
 
 		% Windowing
 		cur_frame = cur_frame.*win;
@@ -92,11 +91,6 @@ function speech_art()
 
 		set(gui.lpc_hndl, 'YData', 10*log10(cur_lpc_H.*conj(cur_lpc_H)));
 		
-		% LSF lines
-		for li=1:signal.lpc_order
-			set(gui.lsf_hndl(li), 'XData',cur_lsf(li)*signal.sample_rate/2/pi+[0 0]);
-		end
-		
 		% Draw snake
 		snake_head_x = get(gui.snake_head_hndl, 'XData');
 		snake_head_y = get(gui.snake_head_hndl, 'YData');
@@ -106,7 +100,7 @@ function speech_art()
 		snake_s = get(gui.snake_hndl, 'SizeData');
 		cur_s = realmin+(20*(cur_power-signal.power_rg(1))/(signal.power_rg(2)-signal.power_rg(1)))^2;
 		set(gui.snake_hndl, 'XData',[snake_x(2:end) snake_head_x], 'YData',[snake_y(2:end) snake_head_y], 'SizeData',[snake_s(2:end) snake_head_s]);
-		set(gui.snake_head_hndl, 'XData',cur_lsf(3), 'YData',cur_lsf(5), 'SizeData',cur_s);
+		set(gui.snake_head_hndl, 'XData',cur_lsf(2), 'YData',cur_lsf(5), 'SizeData',cur_s);
 
 		% Draw image
 		pause(0.000001);
