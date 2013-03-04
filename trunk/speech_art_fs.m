@@ -39,13 +39,13 @@ function speech_art_fs()
 	svm_opt = ' -c 512 -g 0.125 -h 0 -q';
 	gmm_opt = {1, 'Replicates',3, 'Regularize',1e-6, 'options',statset('MaxIter',10000, 'TolX',1e-6)};
 
-	C = nchoosek(1:size(data_obs,2),3);
+	C = nchoosek(1:size(data_obs,2),2);
 	C = mat2cell(C, ones(1,size(C,1)), size(C,2));
 	rate_svm = zeros(size(C));
 	rate_gmm = zeros(size(C));
 	parfor ci=1:length(C)
 		rate_svm(ci) = est_rate_svm(data_obs(:,C{ci}), data_cl, svm_opt); %#ok<PFBNS>
-		rate_gmm(ci) = est_rate_gmm(data_obs(:,C{ci}), data_cl, gmm_opt);
+%		rate_gmm(ci) = est_rate_gmm(data_obs(:,C{ci}), data_cl, gmm_opt);
 	end
 
 	figure('NumberTitle','off', 'Name','speech_art_fs: fs');
