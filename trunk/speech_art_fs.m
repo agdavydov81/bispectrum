@@ -9,7 +9,7 @@ function speech_art_fs()
 	signal.lpc_order = round(signal.sample_rate/1000+4);
 	signal.snale_length = 100;
 
-	root = ['voiced' filesep];
+	root = ['voiced' filesep 'f0_flow' filesep];
 	list = dir([root '*.wav']);
 	list = strcat(root, {list.name});
 

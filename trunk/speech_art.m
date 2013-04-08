@@ -15,7 +15,7 @@ function speech_art()
 	signal.power_rg = [-40 20];
 	signal.rceps = round(0.004*signal.sample_rate);
 	signal.lpc_order = round(signal.sample_rate/1000+4);
-	signal.snale_length = 100;
+	signal.snake_length = 100;
 
 	hold(ax_spectrum, 'on');
 	gui.fft_hndl =   plot(ax_spectrum, linspace(0,signal.sample_rate/2,signal.FFT_N/2+1), randn(signal.FFT_N/2+1,1));
@@ -24,7 +24,7 @@ function speech_art()
 	axis(ax_spectrum, [0 signal.sample_rate/2 -60 20]);
 
 	hold(ax_art, 'on');
-	gui.snake_hndl = scatter(ax_art, -ones(1,signal.snale_length), -ones(1,signal.snale_length), ones(1,signal.snale_length), [1 0 0]);
+	gui.snake_hndl = scatter(ax_art, -ones(1,signal.snake_length), -ones(1,signal.snake_length), ones(1,signal.snake_length), [1 0 0]);
 	gui.snake_head_hndl = scatter(ax_art, -1, -1, 1, [0 0 1], 'filled');
 	axis(ax_art, [0.1 0.6 0.5 1.4]);
 
