@@ -2,26 +2,40 @@ function signal_view(cfg)
 	if nargin<1
 		cfg_file_name='signal_view_cfg.mat';
 		if exist(cfg_file_name,'file')
-			load(cfg_file_name);
-		else
-			cfg=struct( 'fs',0, 'lpc_order',0, ... % 0 - auto
-						'frame_size',0.025, 'frame_shift',0.005, 'fft_size',512, ...
-						'preemphasis','adaptive', 'window','hamming', 'F0',[80 500], 'roots_threshold', sqrt(0.5), ...
-						'display_spectrogram','lpc', ... % 'display_spectrogram' must be either 'lpc' either 'fft'
-						'display_palette','antigray');
+			load(cfg_file_name, 'cfg');
 		end
+	end
 
+	if ~exist('cfg','var');					cfg = struct();						end
+	if ~isfield(cfg,'fs');					cfg.fs = 0;							end % 0 - auto
+	if ~isfield(cfg,'lpc_order');			cfg.lpc_order = 0;					end % 0 - auto
+	if ~isfield(cfg,'frame_size');			cfg.frame_size = 0.025;				end
+	if ~isfield(cfg,'frame_shift');			cfg.frame_shift = 0.005;			end
+	if ~isfield(cfg,'fft_size');			cfg.fft_size = 512;					end
+	if ~isfield(cfg,'preemphasis');			cfg.preemphasis = 'adaptive';		end
+	if ~isfield(cfg,'window');				cfg.window = 'hamming';				end
+	if ~isfield(cfg,'F0');					cfg.F0 = [80 500];					end
+	if ~isfield(cfg,'roots_threshold');		cfg.roots_threshold = sqrt(0.5);	end
+	if ~isfield(cfg,'display_spectrogram');	cfg.display_spectrogram = 'lpc';	end % 'display_spectrogram' must be either 'lpc' either 'fft'
+	if ~isfield(cfg,'display_palette');		cfg.display_palette = 'antigray';	end
+	if ~isfield(cfg,'show_lsf');			cfg.show_lsf = true;				end
+	if ~isfield(cfg,'show_strong_roots');	cfg.show_strong_roots = true;		end
+	if ~isfield(cfg,'show_weak_roots');		cfg.show_weak_roots = true;			end
+
+	if nargin<1
 		[cfg, press_OK]=settings_dlg(cfg);
-		if press_OK
-			save(cfg_file_name,'cfg');
-		else
-			return;
+		if ~press_OK
+			return
 		end
+		save(cfg_file_name,'cfg');
 	end
 
 	%% Signal preparation
 	[x,fs]=wavread(cfg.file_name);
 	x(:,2:end)=[];
+	
+	[region_pos, region_name]=safe_wav_regions_read(cfg.file_name);
+	region_pos = [region_pos(:,1)-1 sum(region_pos,2)]/fs;
 
 	if isfield(cfg,'fs') && cfg.fs && cfg.fs~=fs
 		x=resample(x,cfg.fs,fs);
@@ -54,6 +68,10 @@ function signal_view(cfg)
 	stat_ylim=stat_ylim+0.01*diff(stat_ylim)*[1 -1];
 	stat_caret=line(zeros(1,5), stat_ylim([1 2 2 1 1]), 'Color','k', 'LineWidth',1.5);
 	caret=line([0 0], ylim(), 'Color','r', 'LineWidth',2);
+
+	if ~isempty(region_pos)
+		plot_regions_str(region_pos, [0.5 0.5 0.5], 0.5, 'k', region_name);
+	end
 	
 	%% Calculate observations: LPC spectrogramm, LSFs, roots
 	spectrum_subplot=axes('Units','normalized', 'Position',[0.06 0.42 0.92 0.30]);
@@ -182,10 +200,10 @@ function signal_view(cfg)
 	ctrl_pos=get(signal_subplot,'Position');
 	btn_play=uicontrol('Parent',fig, 'Style','pushbutton', 'String','Play view', 'Units','normalized', ...
 			'Position',[ctrl_pos(1)+ctrl_pos(3)-0.075 ctrl_pos(2)+ctrl_pos(4) 0.075 0.03], 'Callback', @OnPlaySignal);
-	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show LSF',		   'Units','normalized',  'Position',[ctrl_pos(1)	  ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	   'Value',true, 'Callback', @OnShowLSF);
-	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show strong roots',  'Units','normalized',  'Position',[ctrl_pos(1)+0.10 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],  'Value',true, 'Callback', @OnShowStrongRoots);
-	uicontrol('Parent',fig,  'Style','checkbox',  'String','Show weak roots',	'Units','normalized',  'Position',[ctrl_pos(1)+0.20 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],  'Value',true, 'Callback', @OnShowWeakRoots);
-
+	ui_show_lsf =	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show LSF',			'Units','normalized',	'Position',[ctrl_pos(1)	  ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],		'Value',cfg.show_lsf,			'Callback', @OnShowLSF);
+	ui_show_strong=	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show strong roots',	'Units','normalized',	'Position',[ctrl_pos(1)+0.10 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	'Value',cfg.show_strong_roots,	'Callback', @OnShowStrongRoots);
+	ui_show_weak =	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show weak roots',		'Units','normalized',	'Position',[ctrl_pos(1)+0.20 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	'Value',cfg.show_weak_roots,	'Callback', @OnShowWeakRoots);
+	
 	pan('xon');
 	zoom('xon');
 	zoom('off');
@@ -208,7 +226,69 @@ function signal_view(cfg)
 
 	%% Current estimations display
 	UpdateFrameStat(data, 0);
+	
+	if ~cfg.show_lsf
+		OnShowLSF(ui_show_lsf);
+	end
+	if ~cfg.show_strong_roots
+		OnShowStrongRoots(ui_show_strong);
+	end
+	if ~cfg.show_weak_roots
+		OnShowWeakRoots(ui_show_weak);
+	end
 end
+
+function plot_regions_str(reg, patch_clr, patch_transparency, border_clr, str)
+	if nargin<2
+		patch_clr=[1 0 1];
+	end
+	if nargin<3
+		patch_transparency=0.3;
+	end
+
+	y_lim=ylim();
+	z_pos=-0.1;
+	pv=[0 y_lim(1) z_pos; 0 y_lim(2) z_pos; 1 y_lim(2) z_pos; 1 y_lim(1) z_pos];
+	pc=[patch_clr;  patch_clr;  patch_clr;  patch_clr];
+	pf=[1 2 3; 1 3 4];
+	zlim([-1 0]);
+
+	for i=1:size(reg,1)
+		pv([1 2],1)=reg(i,1);
+		pv([3 4],1)=reg(i,2);
+		patch('Vertices',pv,'Faces',pf,'FaceVertexCData',pc,'FaceColor','flat','EdgeColor','none','FaceAlpha',patch_transparency);
+		line(reg(i,[1 1 2 2 1]), y_lim([1 2 2 1 1]), 'Color',border_clr, 'LineWidth',1.5);
+	end
+
+	text(reg(:,1), max(ylim)+zeros(size(str)), str, 'Interpreter','none', 'HorizontalAlignment','left', 'VerticalAlignment','top');
+end
+
+function [region_pos, region_name]=safe_wav_regions_read(wav_file)
+% Функция [region_pos, region_name]=safe_wav_regions_read(wav_file) предназначена для загрузки
+%   регионов из .wav файла.
+%   Параметры:
+%       wav_file - имя файла, откуда будут загружены регионы;
+%       region_pos - матрица Nx2 регионов [начало длинна] (в отсчетах начиная с 1).
+%		region_name - cell имен регионов
+%
+%   See also WAV_REGIONS_WRITE.
+
+%   Версия: 1.1
+%   Автор: Давыдов А.Г. (18.05.2010)
+	region_pos = zeros(0, 2);
+	region_name= {};
+
+	exe_path = which('WavRegionsExtractor.exe');
+	if isempty(exe_path)
+		return
+	end
+	txt_file=tempname();
+	dos(['"' which('WavRegionsExtractor.exe') '" "' wav_file '" "' txt_file '" >nul']);
+	[a b region_name]=textread(txt_file,'%d%d%s', 'whitespace','\t');
+	region_pos=[a+1, b];
+	delete(txt_file);
+end
+
 
 function UpdateFrameStat(data, x_pos)
 	% Function for short-time estimations display
@@ -302,6 +382,7 @@ function OnShowStrongRoots(hObject, eventdata) %#ok<*INUSD>
 		is_show='off';
 	end
 	set(data.user_data.roots_strong_tracks, 'Visible', is_show);
+	zlim(data.user_data.spectrum_subplot, [-1 1]);
 end
 
 function OnShowWeakRoots(hObject, eventdata)
@@ -312,6 +393,7 @@ function OnShowWeakRoots(hObject, eventdata)
 		is_show='off';
 	end
 	set(data.user_data.roots_weak_tracks, 'Visible', is_show);
+	zlim(data.user_data.spectrum_subplot, [-1 1]);
 end
 
 function OnShowLSF(hObject, eventdata)
@@ -322,6 +404,7 @@ function OnShowLSF(hObject, eventdata)
 		is_show='off';
 	end
 	arrayfun(@(x) set(x,'Visible',is_show), data.user_data.lsf_tracks);
+	zlim(data.user_data.spectrum_subplot, [-1 1]);
 end
 
 function OnPlaySignal(hObject, eventdata)
@@ -351,6 +434,8 @@ end
 
 function OnZoomPan(hObject, eventdata)
 	data = guidata(hObject);
+	zlim(data.user_data.spectrum_subplot, [-1 1]);
+
 	if eventdata.Axes==data.user_data.signal_subplot || eventdata.Axes==data.user_data.spectrum_subplot
 		x_lim=correct_range(xlim(), [0 data.user_data.player.TotalSamples/data.user_data.player.SampleRate]);
 		set(data.user_data.signal_subplot, 'XLim',x_lim, 'YLim',data.user_data.signal_lim);
