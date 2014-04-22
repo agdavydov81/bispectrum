@@ -59,7 +59,6 @@ try
 	load('phase_analysis_dlg_cfg.mat');
 
 	set(handles.ed_filename,'String',dlg_cfg.filename);
-	set(handles.ed_harm_num,'String',dlg_cfg.harm_num);
 	set(handles.chk_harm_save,'Value',dlg_cfg.harm_save);
 	set(handles.ed_harm_dir,'String',dlg_cfg.harm_dir);
 	set(handles.ed_func,'String',dlg_cfg.func);
@@ -149,29 +148,6 @@ function chk_harm_save_Callback(hObject, eventdata, handles)
 	set(handles.btn_harm_dir_sel,'Enable',st);
 
 
-function ed_harm_num_Callback(hObject, eventdata, handles)
-% hObject    handle to ed_harm_num (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of ed_harm_num as text
-%        str2double(get(hObject,'String')) returns contents of ed_harm_num as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function ed_harm_num_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to ed_harm_num (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
 function ed_harm_dir_Callback(hObject, eventdata, handles)
 % hObject    handle to ed_harm_dir (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -245,6 +221,12 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	[cur_path,cur_name,cur_ext]=fileparts(filename);
 	[x,fs_x]=wavread(filename);
 	x(:,2:end)=[];
+	
+	eval_str = cellstr(get(handles.ed_func,'String'));
+	regexp_str = cellfun(@(x) [x ';'], eval_str, 'UniformOutput',false);
+	regexp_str = [regexp_str{:}];
+	phase_mul  = [regexp(regexp_str, '(?<=(^p|\Wp)hi)\d+', 'match') regexp(regexp_str, '(?<=(^x|\Wx))\d+', 'match')];
+	phase_mul  = sort( cellfun(@str2double, phase_mul) );
 
 	alg.pitch=struct(	'frame_size',	str2double(get(handles.ed_f0_framesize,'String')),	...
 						'frame_shift',	str2double(get(handles.ed_f0_frameshift,'String')),	...
@@ -252,7 +234,7 @@ function btn_calc_Callback(hObject, eventdata, handles)
 						'fine_side_band',str2double(get(handles.ed_f0_sideband,'String')));
 
 	filt_names=get(handles.pop_flt_type,'String');
-	alg.phase=struct(	'mul',			str2num(get(handles.ed_harm_num,'String')),			...
+	alg.phase=struct(	'mul',			phase_mul,			...
 						'filt',struct(	'frame_size',	str2double(get(handles.ed_flt_framesize,'String')),	...
 										'frame_shift',	str2double(get(handles.ed_flt_frameshift,'String')),...
 										'type',			filt_names{get(handles.pop_flt_type,'Value')},		...
@@ -286,7 +268,6 @@ function btn_calc_Callback(hObject, eventdata, handles)
 		end
 	end
 
-	eval_str=cellstr(get(handles.ed_func,'String'));
 	notnan_ind=not(any(isnan(harm_phi),2));
 	notnan_diff=diff([false; notnan_ind; false]);
 	voiced_reg=[find(notnan_diff==1) find(notnan_diff==-1)-1];
@@ -480,7 +461,6 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
 	pause(0.2);
 
 	dlg_cfg.filename=		get(handles.ed_filename,'String');
-	dlg_cfg.harm_num=		get(handles.ed_harm_num,'String');
 	dlg_cfg.harm_save=		get(handles.chk_harm_save,'Value');
 	dlg_cfg.harm_dir=		get(handles.ed_harm_dir,'String');
 	dlg_cfg.func=			cellstr(get(handles.ed_func,'String'));
