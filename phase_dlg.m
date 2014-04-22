@@ -22,7 +22,7 @@ function varargout = phase_dlg(varargin)
 
 % Edit the above text to modify the response to help phase_dlg
 
-% Last Modified by GUIDE v2.5 01-Jun-2013 07:00:46
+% Last Modified by GUIDE v2.5 01-Jun-2013 08:29:17
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -240,25 +240,69 @@ function process_btn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 	[x,fs]=wavread(get(handles.signal_ed,'String'));
 
-	central_freq = str2double(get(handles.centralfreq_ed,'String'));
-	omega_freq =   str2double(get(handles.omegafreq_ed,'String'));
-	pass_band =    str2double(get(handles.passband_ed,'String'));
-	pass_order =   str2double(get(handles.passorder_ed,'String'));
-
-	pass_order = round((pass_order*fs)/2)+1;
-
-	x_lo = sel_band(x, fs, central_freq-omega_freq+pass_band*[-0.5 0.5], pass_order);
-	x_c  = sel_band(x, fs, central_freq           +pass_band*[-0.5 0.5], pass_order);
-	x_hi = sel_band(x, fs, central_freq+omega_freq+pass_band*[-0.5 0.5], pass_order);
+	cfg.central_freq = str2double(get(handles.centralfreq_ed,'String'));
+	cfg.omega_freq =   str2double(get(handles.omegafreq_ed,'String'));
+	cfg.pass_band =    str2double(get(handles.passband_ed,'String'));
+	cfg.pass_order =   str2double(get(handles.passorder_ed,'String'));
+	cfg.pass_order = round((cfg.pass_order*fs)/2)+1;
 	
-	x_loc = sel_band(x_c.*x_lo, fs, omega_freq+pass_band*[-0.5 0.5], pass_order);
-	x_hic = sel_band(x_c.*x_hi, fs, omega_freq+pass_band*[-0.5 0.5], pass_order);
-	
-	y1c2 = sel_band(x_loc.*x_hic, fs, pass_band*0.5, pass_order);
+	phmtr_type =	find([	get(handles.outtype_btn1,'Value');
+							get(handles.outtype_btn2,'Value');
+							get(handles.outtype_btn3,'Value') ]);
+
+						
+	switch(phmtr_type)
+		case 1
+			y = phasometer_galaev_kivva(x, fs, cfg);
+			y_t = (0:length(y)-1)/fs;
+		case 2
+%			[out_dphi, out_dphi_t]=Intercomponent_Analysis(x, gcd(cfg.central_freq), ret_type, K, phasometr_type, amp_thres_beg, amp_thres_end, freq_factor, is_display, F0_bnd)
+		case 3
+%			[out_dphi, out_dphi_t]=Intercomponent_Analysis(x, F_base, ret_type, K, phasometr_type, amp_thres_beg, amp_thres_end, freq_factor, is_display, F0_bnd)
+		otherwise
+			error('Unknown phasometer type');
+	end
 
 	figure();
-	plot((0:length(y1c2)-1)/fs,y1c2);
+	plot(y_t,y);
+
+function y = phasometer_galaev_kivva(x, fs, cfg)
+	x_lo = sel_band(x, fs, cfg.central_freq-cfg.omega_freq+cfg.pass_band*[-0.5 0.5], cfg.pass_order);
+	x_c  = sel_band(x, fs, cfg.central_freq           +cfg.pass_band*[-0.5 0.5], cfg.pass_order);
+	x_hi = sel_band(x, fs, cfg.central_freq+cfg.omega_freq+cfg.pass_band*[-0.5 0.5], cfg.pass_order);
+
+	x_loc = sel_band(x_c.*x_lo, fs, cfg.omega_freq+cfg.pass_band*[-0.5 0.5], cfg.pass_order);
+	x_hic = sel_band(x_c.*x_hi, fs, cfg.omega_freq+cfg.pass_band*[-0.5 0.5], cfg.pass_order);
+
+	y = sel_band(x_loc.*x_hic, fs, cfg.pass_band*0.5, cfg.pass_order);
 
 function y = sel_band(x, fs, band, order)
 	b = fir1(order, band*2/fs);
 	y= filtfilt(b, 1, x);
+
+
+% --- Executes on button press in outtype_btn1.
+function outtype_btn1_Callback(hObject, eventdata, handles)
+% hObject    handle to outtype_btn1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of outtype_btn1
+
+
+% --- Executes on button press in outtype_btn2.
+function outtype_btn2_Callback(hObject, eventdata, handles)
+% hObject    handle to outtype_btn2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of outtype_btn2
+
+
+% --- Executes on button press in outtype_btn3.
+function outtype_btn3_Callback(hObject, eventdata, handles)
+% hObject    handle to outtype_btn3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of outtype_btn3
