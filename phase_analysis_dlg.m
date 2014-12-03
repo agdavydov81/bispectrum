@@ -273,9 +273,11 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	voiced_reg=[find(notnan_diff==1) find(notnan_diff==-1)-1];
 	y_cell=cell(size(voiced_reg,1),1);
 	for ri=1:size(voiced_reg,1)
-		cur_phi=harm_phi(voiced_reg(ri,1):voiced_reg(ri,2),:);
-		cur_x=harm_x(voiced_reg(ri,1):voiced_reg(ri,2),:);
-		y_cell{ri}=func_eval_block(cur_phi, cur_x, harm_fs, alg, eval_str);
+		cur_phi = harm_phi(voiced_reg(ri,1):voiced_reg(ri,2),:);
+		cur_x = harm_x(voiced_reg(ri,1):voiced_reg(ri,2),:);
+		cur_t = harm_t(voiced_reg(ri,1):voiced_reg(ri,2),:);
+		cur_f0= f0_freq(voiced_reg(ri,1):voiced_reg(ri,2),:);
+		y_cell{ri} = func_eval_block(cur_t, cur_f0, cur_phi, cur_x, harm_fs, alg, eval_str);
 	end
 	y=nan(size(harm_phi,1),size(y_cell{1},2));
 	y(notnan_ind,:)=cell2mat(y_cell);
@@ -433,7 +435,7 @@ function CallbackPlayStop(obj, event, string_arg)
 	set(user_data.btn_play, 'String', 'Play view');
 
 
-function y=func_eval_block(phi, x, fs, alg, eval_str)
+function y=func_eval_block(t, F0, phi, x, fs, alg, eval_str)
 	for ch=1:numel(alg.phase.mul)
 		eval(['x' num2str(alg.phase.mul(ch)) '=x(:,ch);']);
 		eval(['phi' num2str(alg.phase.mul(ch)) '=phi(:,ch);']);
