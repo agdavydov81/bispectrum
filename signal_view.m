@@ -566,8 +566,18 @@ function map=makecolormap(map_info)
 	map(64,:)=map_info(end,2:4);
 end
 
+function str_tr = gtxtloop(str_eng)
+	str_tr = str_eng;
+end
+
 function [cfg, press_OK]=settings_dlg(cfg)
-	dlg.handle=dialog('Name','Настройки SignalView', 'Units','pixels', 'Position',get(0,'ScreenSize'));
+	if exist('simplegettext','class')
+		gtxt = simplegettext();
+	else
+		gtxt.translate = @gtxtloop;
+	end
+
+	dlg.handle=dialog('Name',gtxt.translate('SignalView Setup'), 'Units','pixels', 'Position',get(0,'ScreenSize'));
 	set(dlg.handle,'Units','characters');
 	scr_sz=get(dlg.handle,'Position');
 	dlg_width=80;
@@ -576,7 +586,7 @@ function [cfg, press_OK]=settings_dlg(cfg)
 	ui_text_pos=get(dlg.handle, 'Position');
 	ui_text_pos=[1.5 ui_text_pos(4)-2 ui_text_pos(3)-3 1.2];
 
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Путь к звуковому файлу',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Sound file path'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_text_pos(2)=ui_text_pos(2)-1.5;
 
 	ui_ctrl_pos=[ui_text_pos(1:3) 1.5];
@@ -592,27 +602,27 @@ function [cfg, press_OK]=settings_dlg(cfg)
 	ui_text_pos=[22.5 ui_text_pos(2) ui_text_pos(3)-17 ui_text_pos(4)];
 
 	dlg.fs=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.fs),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Частота дискретизации (Гц)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Resampling frequency (Hz)'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.lpc_order=	uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.lpc_order),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Порядок фильтра предсказания',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Prediction filter order'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.frame_size=		uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_size),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер кадра анализа (с)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Frame size (sec.)'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.frame_shift=	uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.frame_shift),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Размер шага анализа (с)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Frame shift (sec.)'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.fft_size=		uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.fft_size),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Число точек БПФ',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('FFT size'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
@@ -622,44 +632,44 @@ function [cfg, press_OK]=settings_dlg(cfg)
 	elseif ischar(cfg.preemphasis)
 		set(dlg.preemphasis,'String',cfg.preemphasis);
 	end
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Коэффициент предискажения',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Preemphasis factor'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	window_popup={'bartlett' 'barthannwin' 'blackman' 'blackmanharris' 'bohmanwin' 'chebwin' 'flattopwin' 'gausswin' 'hamming' 'hann' 'kaiser' 'nuttallwin' 'parzenwin' 'rectwin' 'taylorwin' 'tukeywin' 'triang'};
 	dlg.window=		uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',window_popup, 'Value',find(strcmp(cfg.window,window_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Оконная функция',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Windowing function'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.F0=			uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.F0),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Диапазон частоты основного тона (Гц)',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Fundamental frequency range (Hz)'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	dlg.roots_threshold=uicontrol('Parent',dlg.handle,  'Style','edit',  'String',num2str(cfg.roots_threshold),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Порог амплитуды полюсов',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Poles magnitude threshold'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	display_spectrogram_popup={'fft' 'lpc'};
 	dlg.display_spectrogram=uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',display_spectrogram_popup, 'Value',find(strcmp(cfg.display_spectrogram,display_spectrogram_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Вид спектрограммы',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Spectrogram type'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-2;
 	ui_text_pos(2)=ui_text_pos(2)-2;
 
 	display_palette_popup={'antigray' 'cool' 'fire' 'hot' 'hsl' 'jet' 'speech'};
 	dlg.display_palette=uicontrol('Parent',dlg.handle,  'Style','popupmenu',  'String',display_palette_popup, 'Value',find(strcmp(cfg.display_palette,display_palette_popup)),  'Units','characters',  'Position', ui_ctrl_pos,  'HorizontalAlignment','right',  'BackgroundColor','w');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Палитра спектрограммы',  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String',gtxt.translate('Spectrogram palette'),  'Units','characters',  'Position',ui_text_pos,  'HorizontalAlignment','left');
 	ui_ctrl_pos(2)=ui_ctrl_pos(2)-4;
 
 
 	ui_ctrl_pos=[ui_ctrl_pos(1:2) dlg_width-3 3];
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','(C) Давыдов Андрей (andrew.aka.manik@gmail.com)',  'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-38 ui_ctrl_pos(4)],	'HorizontalAlignment','left');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Версия 1.0.0.5 от 2012/08/02 22:31:34',			'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2)-1.2 ui_ctrl_pos(3)-38 ui_ctrl_pos(4)-1],  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','(C) Davydov Andrei (andrew.aka.manik@gmail.com)',  'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-38 ui_ctrl_pos(4)],	'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Version 1.0.0.6 2014/12/31 01:40:22',			'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2)-1.2 ui_ctrl_pos(3)-38 ui_ctrl_pos(4)-1],  'HorizontalAlignment','left');
 
 	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','OK',	  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-37 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgOK);
-	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','Отмена',  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-18 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgCancel);
+	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String',gtxt.translate('Cancel'),  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-18 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgCancel);
 
 	handles=guihandles(dlg.handle);
 	handles.dlg=dlg;
