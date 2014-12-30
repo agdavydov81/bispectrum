@@ -79,13 +79,22 @@ try
 catch
 end
 
-traslate_ui(simplegettext(), hObject);
+if exist('simplegettext','class')
+	gtxt = simplegettext();
+else
+	gtxt.translate = @gtxtloop;
+end
+traslate_ui(gtxt, hObject);
 
 % Update handles structure
 guidata(hObject, handles);
 
 % UIWAIT makes phase_analysis_dlg wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
+
+
+function str_tr = gtxtloop(str_eng)
+str_tr = str_eng;
 
 
 function traslate_ui(gtxt,hObject)
