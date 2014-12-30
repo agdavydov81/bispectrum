@@ -79,11 +79,32 @@ try
 catch
 end
 
+traslate_ui(simplegettext(), hObject);
+
 % Update handles structure
 guidata(hObject, handles);
 
 % UIWAIT makes phase_analysis_dlg wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
+
+
+function traslate_ui(gtxt,hObject)
+ch_list = get(hObject,'Children');
+for ci = 1:numel(ch_list)
+	traslate_ui(gtxt,ch_list(ci));
+end
+
+fl_name = '';
+if strcmp(get(hObject,'Type'),'uipanel')
+	fl_name = 'Title';
+end
+if strcmp(get(hObject,'Type'),'uicontrol') && ...
+	any(strcmp(get(hObject,'Style'),{'text','pushbutton','checkbox'}))
+		fl_name = 'String';
+end
+if ~isempty(fl_name)
+	set(hObject,fl_name, gtxt.translate(get(hObject,fl_name)));
+end
 
 
 % --- Outputs from this function are returned to the command line.
