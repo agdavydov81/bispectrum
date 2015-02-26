@@ -160,12 +160,15 @@ t = (0:size(x,1)-1)'/fs;
 
 report_str = ['F=' get(handles.freq_f,'String') '; Kk=' num2str(Kk) '; LP filter order=' num2str(numel(b)) ', cutoff=' num2str(w) '.'];
 
-if get(handles.gui_usepool,'Value') && matlabpool('size')==0
-	local_jm=findResource('scheduler','type','local');
-	if local_jm.ClusterSize>1
-		matlabpool('local');
+try
+	if get(handles.gui_usepool,'Value') && matlabpool('size')==0
+		local_jm=findResource('scheduler','type','local');
+		if local_jm.ClusterSize>1
+			matlabpool('local');
+		end
 	end
-end 
+catch
+end
 
 Y = cell(size(F));
 parfor fi = 1:numel(F)
