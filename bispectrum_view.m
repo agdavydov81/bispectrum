@@ -1,5 +1,5 @@
 function bispectrum_view(cfg)
-	if nargin<1 
+	if nargin<1
 		cfg=struct('file_name','', 'frame_size',0.025, 'frame_shift',0.005, 'fft_size',1024, 'max_freq',[1500 750], ...
 			'is_preemphasis',false, 'is_bispec_view_log',true, 'is_bispec_view_contour',false, ...
 			'calc_obj','lpc_error' ... % 'fft' or 'lpc_error' or 'lpc_envelope'
