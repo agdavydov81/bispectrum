@@ -1,4 +1,4 @@
-function varargout = phase_demod_dlg(varargin)
+function varargout = phase_demod_dlg(varargin) 
 % PHASE_DEMOD_DLG MATLAB code for phase_demod_dlg.fig
 %      PHASE_DEMOD_DLG, by itself, creates a new PHASE_DEMOD_DLG or raises the existing
 %      singleton*.
