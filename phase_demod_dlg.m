@@ -22,7 +22,7 @@ function varargout = phase_demod_dlg(varargin)
 
 % Edit the above text to modify the response to help phase_demod_dlg
 
-% Last Modified by GUIDE v2.5 26-Feb-2015 06:28:42
+% Last Modified by GUIDE v2.5 09-Mar-2015 16:51:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -294,3 +294,25 @@ for i=2:63
 	map(i,:)=map_info(index-1,2:4)+(map_info(index,2:4)-map_info(index-1,2:4))*(pos-map_info(index-1,1))/(map_info(index,1)-map_info(index-1,1));
 end
 map(64,:)=map_info(end,2:4);
+
+
+% --- Executes on button press in filterlp_view.
+function filterlp_view_Callback(hObject, eventdata, handles)
+% hObject    handle to filterlp_view (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+filename = get(handles.inputfile_edit,'String');
+[~,fs] = wavread(filename);
+fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
+w = fc*2/fs;
+b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), w);
+[H,w] = freqz(b,1,65536);
+figure('NumberTitle','off', 'Name','FIR filter responce');
+H = 20*log10(abs(H));
+plot(w*fs/(2*pi), H, 'LineWidth',1.5);
+axis([0 fc*3 -120 5]);
+line([0 fc fc],[0 0 -300],'Color','r','LineStyle','--','LineWidth',1.5);
+grid('on');
+title(sprintf('АЧХ НЧ КИХ фильтра, частота среза %s Гц, порядок %d, частота дискретизации %s Гц',num2str(fc),numel(b),num2str(fs)), 'interpreter','none');
+xlabel('Частота, Гц');
+ylabel('Амплитуда, дБ');
