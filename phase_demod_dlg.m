@@ -302,7 +302,7 @@ function filterlp_view_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 filename = get(handles.inputfile_edit,'String');
-[~,fs] = wavread(filename);
+[x,fs] = wavread(filename);
 fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
 w = fc*2/fs;
 b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), w);
