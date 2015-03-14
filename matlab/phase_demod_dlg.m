@@ -45,7 +45,7 @@ end
 
 
 % --- Executes just before phase_demod_dlg is made visible.
-function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin)
+function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin) %#ok<*INUSL>
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -71,7 +71,7 @@ try
 	end
 
 	set(hObject,'Position',dlg_cfg.position);
-catch
+catch %#ok<*CTCH>
 end
 
 % Update handles structure
@@ -93,7 +93,7 @@ varargout{1} = handles.output;
 
 
 % --- Executes on button press in inputfile_btn.
-function inputfile_btn_Callback(hObject, eventdata, handles)
+function inputfile_btn_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
 % hObject    handle to inputfile_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -145,7 +145,7 @@ if get(handles.inputfile_invert,'Value')
 end
 
 eval(['F=' get(handles.freq_f,'String') ';']);
-F = F(:)';
+F = F(:)'; %#ok<*NODEF>
 Kk = str2double_my(get(handles.freq_k,'String'));
 eval(['phi=' get(handles.freq_phase_shift,'String') ';']);
 phi = phi(1); % parfor fix
@@ -178,7 +178,7 @@ Y = cell2mat(Y);
 x(end-ord2+1:end) = [];
 t(end-ord2+1:end) = [];
 
-[cur_dir, cur_name] = fileparts(filename);
+[cur_dir, cur_name] = fileparts(filename); %#ok<*ASGLU>
 figure('NumberTitle','off', 'Name',cur_name, 'Units','normalized', 'Position',[0 0 1 1]);
 subplot(2,1,1);
 plot(t,x);
