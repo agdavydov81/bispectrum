@@ -45,7 +45,7 @@ end
 
 
 % --- Executes just before phase_demod_dlg is made visible.
-function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin) %#ok<*INUSL>
+function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -71,7 +71,7 @@ try
 	end
 
 	set(hObject,'Position',dlg_cfg.position);
-catch %#ok<*CTCH>
+catch
 end
 
 % Update handles structure
@@ -93,7 +93,7 @@ varargout{1} = handles.output;
 
 
 % --- Executes on button press in inputfile_btn.
-function inputfile_btn_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
+function inputfile_btn_Callback(hObject, eventdata, handles)
 % hObject    handle to inputfile_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -138,47 +138,70 @@ function process_btn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 filename = get(handles.inputfile_edit,'String');
-[x,fs] = wavread(filename);
+if any(exist('libsndfile_read')==[2 3])
+	[x,x_info] = libsndfile_read(filename);
+	fs = x_info.SampleRate;
+else
+	[x,fs] = wavread(filename);
+end
 x(:,2:end) = [];
 if get(handles.inputfile_invert,'Value')
 	x = x(end:-1:1,:);
 end
 
 eval(['F=' get(handles.freq_f,'String') ';']);
-F = F(:)'; %#ok<*NODEF>
+F = F(:)';
 Kk = str2double_my(get(handles.freq_k,'String'));
-eval(['phi=' get(handles.freq_phase_shift,'String') ';']);
-phi = phi(1); % parfor fix
+eval(['theta=' get(handles.freq_phase_shift,'String') ';']);
+theta = theta(1); % parfor fix
 isclip = get(handles.freq_isclip,'Value');
+if isclip
+	isclip_str = 'Clipping ON';
+else
+	isclip_str = 'Clipping OFF';
+end
 
-w = str2double_my(get(handles.filterlp_cutoff_edit,'String'))*2/fs;
-b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), w);
+fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
+b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), fc*2/fs);
 ord2 = fix(numel(b)/2);
 
 x = [x; zeros(ord2,1)];
 t = (0:size(x,1)-1)'/fs;
 
-report_str = ['F=' get(handles.freq_f,'String') '; Kk=' num2str(Kk) '; LP filter order=' num2str(numel(b)) ', cutoff=' num2str(w) '.'];
+report_str = {	['F=' get(handles.freq_f,'String') 'Ãö; Kk=' num2str(Kk) '; \theta=' num2str(theta) '; ' isclip_str ';'] ...
+				['Fs=' num2str(fs) 'Ãö; Í× ÊÈÕ ôèëüòð (Fc=' num2str(fc) 'Ãö, ïîðÿäîê ' num2str(numel(b)) ');']};
 
+usepool = false;
 try
-	if get(handles.gui_usepool,'Value') && matlabpool('size')==0
-		local_jm=findResource('scheduler','type','local');
-		if local_jm.ClusterSize>1
-			matlabpool('local');
+	if get(handles.gui_usepool,'Value')
+		if matlabpool('size')==0
+			local_jm=findResource('scheduler','type','local');
+			if local_jm.ClusterSize>1
+				matlabpool('local');
+			end
+		end
+		if matlabpool('size')>0
+			usepool = true;
 		end
 	end
 catch
 end
 
 Y = cell(size(F));
-parfor fi = 1:numel(F)
-	Y{fi} = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, phi, isclip, b);
+if usepool
+	parfor fi = 1:numel(F)
+		Y{fi} = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+	end
+else
+	for fi = 1:numel(F)
+		Y{fi} = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+	end
 end
 Y = cell2mat(Y);
 x(end-ord2+1:end) = [];
 t(end-ord2+1:end) = [];
 
-[cur_dir, cur_name] = fileparts(filename); %#ok<*ASGLU>
+[cur_dir, cur_name] = fileparts(filename);
 figure('NumberTitle','off', 'Name',cur_name, 'Units','normalized', 'Position',[0 0 1 1]);
 subplot(2,1,1);
 plot(t,x);
@@ -224,7 +247,7 @@ y = filter(b,1, x.*y);
 y(1:fix(numel(b)/2)) = [];
 
 
-function on_zoom_pan(hObject, eventdata) %#ok<INUSD>
+function on_zoom_pan(hObject, eventdata)
 %	Usage example:
 %	set(zoom,'ActionPostCallback',@on_zoom_pan);
 %	set(pan ,'ActionPostCallback',@on_zoom_pan);
@@ -302,11 +325,16 @@ function filterlp_view_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 filename = get(handles.inputfile_edit,'String');
-[x,fs] = wavread(filename);
+if any(exist('libsndfile_read')==[2 3])
+	x_info = libsndfile_info(filename);
+	fs = x_info.SampleRate;
+else
+	[x,fs] = wavread(filename);
+end
 fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
 w = fc*2/fs;
 b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), w);
-[H,w] = freqz(b,1,65536);
+[H,w] = freqz(b,1,256*1024);
 figure('NumberTitle','off', 'Name','FIR filter responce');
 H = 20*log10(abs(H));
 plot(w*fs/(2*pi), H, 'LineWidth',1.5);
