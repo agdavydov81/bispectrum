@@ -237,7 +237,7 @@ x = str2double(str);
 
 
 function y = proc_signal(x,f,t,phi,isclip,b)
-y = cos(2*pi*f*t+phi);
+y = sin(2*pi*f*t+phi);
 if isclip
 	ii = y>=0;
 	y(ii) = 1;

@@ -21,7 +21,7 @@ wavwrite(y.*w*0.95/max(abs(y)), fs, 'phase_test_stat.wav');
 
 
 %% Попытка все сделать вручную
-F0 = 99;
+F0 =199.0;
 Kk = 2;
 lp_fc = 10;
 lp_ord = 0.5;
@@ -31,8 +31,8 @@ b = fir1(round(lp_ord*fs), lp_fc*2/fs);
 z_sz = fix(numel(b)/2);
 yz = [y; zeros(z_sz,1)];
 tz = (0:size(yz)-1)'/fs;
-y1 = filter(b,1, yz.*cos(2*pi*F0*tz));
-y2 = filter(b,1, yz.*cos(2*pi*F0*Kk*tz));
+y1 = filter(b,1, yz.*sin(2*pi*F0*tz));
+y2 = filter(b,1, yz.*sin(2*pi*F0*Kk*tz));
 
 % Компенсация групповой задержки фильтра
 tz(end-z_sz+1:end) = [];
