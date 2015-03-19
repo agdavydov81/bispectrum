@@ -190,11 +190,17 @@ end
 Y = cell(size(F));
 if usepool
 	parfor fi = 1:numel(F)
-		Y{fi} = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		Yp = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		Yp = filter(b,1, Yp);
+		Yp(1:fix(numel(b)/2)) = [];
+		Y{fi} = Yp;
 	end
 else
 	for fi = 1:numel(F)
-		Y{fi} = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		Yp = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		Yp = filter(b,1, Yp);
+		Yp(1:fix(numel(b)/2)) = [];
+		Y{fi} = Yp;
 	end
 end
 Y = cell2mat(Y);
@@ -243,8 +249,9 @@ if isclip
 	y(ii) = 1;
 	y(~ii) = -1;
 end
-y = filter(b,1, x.*y);
-y(1:fix(numel(b)/2)) = [];
+y = x.*y;
+%y = filter(b,1, x.*y);
+%y(1:fix(numel(b)/2)) = [];
 
 
 function on_zoom_pan(hObject, eventdata)
