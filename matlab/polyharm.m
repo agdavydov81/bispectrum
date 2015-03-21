@@ -11,4 +11,3 @@ function [y F0 A Phi] = polyharm(fs, len, F0, A, Phi)
 	ff=cumtrapz(t,F0);
 	y=A.*cos(2*pi*ff+Phi);
 end
-
