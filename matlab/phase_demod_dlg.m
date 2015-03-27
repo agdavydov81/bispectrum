@@ -155,10 +155,19 @@ Kk = str2double_my(get(handles.freq_k,'String'));
 eval(['theta=' get(handles.freq_phase_shift,'String') ';']);
 theta = theta(1); % parfor fix
 isclip = get(handles.freq_isclip,'Value');
+is_freq_hilbert = get(handles.freq_hilbert,'Value');
+
+isclip_str = 'Клипирование ';
 if isclip
-	isclip_str = 'Clipping ON';
+	isclip_str = [isclip_str 'ВКЛ.'];
 else
-	isclip_str = 'Clipping OFF';
+	isclip_str = [isclip_str 'ВЫКЛ.'];
+end
+is_freq_hilbert_str = 'Фазовращение ВЧ сигнала ';
+if is_freq_hilbert
+	is_freq_hilbert_str = [is_freq_hilbert_str 'ВКЛ.'];
+else
+	is_freq_hilbert_str = [is_freq_hilbert_str 'ВЫКЛ.'];
 end
 
 fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
@@ -168,7 +177,7 @@ ord2 = fix(numel(b)/2);
 x = [x; zeros(ord2,1)];
 t = (0:size(x,1)-1)'/fs;
 
-report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(Kk) '; \theta=' num2str(theta) '; ' isclip_str ';'] ...
+report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(Kk) '; \theta=' num2str(theta) '; ' isclip_str ';' is_freq_hilbert_str ';'] ...
 				['Fs=' num2str(fs) 'Гц; НЧ КИХ фильтр (Fc=' num2str(fc) 'Гц, порядок ' num2str(numel(b)) ');']};
 
 usepool = false;
@@ -187,7 +196,6 @@ try
 catch
 end
 
-is_freq_hilbert = get(handles.freq_hilbert,'Value');
 
 Y = cell(size(F));
 if usepool
