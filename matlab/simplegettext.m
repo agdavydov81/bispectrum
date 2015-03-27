@@ -9,7 +9,7 @@ classdef simplegettext < handle
 
 	methods(Static)
 		function lng = identify_language()
-			[~,w] = weekday(728647,'long','local');
+			[X,w] = weekday(728647,'long','local');
 			lang_list = {'eng', 'Monday'; % ISO 639-3 codes
 						 'rus', 'Понедельник';
 						 'eus', 'Astelehena';

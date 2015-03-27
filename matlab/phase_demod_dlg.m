@@ -187,17 +187,41 @@ try
 catch
 end
 
+is_freq_hilbert = get(handles.freq_hilbert,'Value');
+
 Y = cell(size(F));
 if usepool
 	parfor fi = 1:numel(F)
-		Yp = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		x_lo = proc_signal(x, F(fi), t, 0, isclip, false);
+		if is_freq_hilbert
+			x_hi = -imag(hilbert(x));
+		else
+			x_hi = x;
+		end
+		x_hi = proc_signal(x_hi, Kk*F(fi), t, theta, isclip, is_freq_hilbert);
+		if is_freq_hilbert
+			Yp = x_lo + x_hi;
+		else
+			Yp = x_lo - x_hi;
+		end
 		Yp = filter(b,1, Yp);
 		Yp(1:fix(numel(b)/2)) = [];
 		Y{fi} = Yp;
 	end
 else
 	for fi = 1:numel(F)
-		Yp = proc_signal(x, F(fi), t, 0, isclip, b)  -  proc_signal(x, Kk*F(fi), t, theta, isclip, b);
+		x_lo = proc_signal(x, F(fi), t, 0, isclip, false);
+		if is_freq_hilbert
+			x_hi = -imag(hilbert(x));
+		else
+			x_hi = x;
+		end
+		x_hi = proc_signal(x_hi, Kk*F(fi), t, theta, isclip, is_freq_hilbert);
+		if is_freq_hilbert
+			Yp = x_lo + x_hi;
+		else
+			Yp = x_lo - x_hi;
+		end
 		Yp = filter(b,1, Yp);
 		Yp(1:fix(numel(b)/2)) = [];
 		Y{fi} = Yp;
@@ -242,16 +266,18 @@ end
 x = str2double(str);
 
 
-function y = proc_signal(x,f,t,phi,isclip,b)
-y = sin(2*pi*f*t+phi);
+function y = proc_signal(x,f,t,phi,isclip,is_freq_hilbert)
+if is_freq_hilbert
+	y = cos(2*pi*f*t+phi);
+else
+	y = sin(2*pi*f*t+phi);
+end
 if isclip
 	ii = y>=0;
 	y(ii) = 1;
 	y(~ii) = -1;
 end
 y = x.*y;
-%y = filter(b,1, x.*y);
-%y(1:fix(numel(b)/2)) = [];
 
 
 function on_zoom_pan(hObject, eventdata)
