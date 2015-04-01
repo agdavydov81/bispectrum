@@ -725,8 +725,19 @@ function [cfg, press_OK]=settings_dlg(cfg)
 end
 
 function OnFileNameSel(hObject, eventdata)
+	if exist('simplegettext','class')
+		gtxt = simplegettext();
+	else
+		gtxt.translate = @gtxtloop;
+	end
+
 	handles=guidata(hObject);
-	[dlg_name,dlg_path]=uigetfile({'*.wav;*.flac;*.ogg','Sound files';'*.*','All files'},'Выберите файл для обработки',get(handles.dlg.file_name,'String'));
+    if exist('libsndfile_read','file')
+        dlg_filter = {'*.wav;*.flac;*.ogg','Sound files';'*.*','All files'};
+    else
+        dlg_filter = {'*.wav','Wave files (*.wav)';'*.*','All files'};
+    end
+   	[dlg_name,dlg_path]=uigetfile(dlg_filter,gtxt.translate('Select file for processing'),get(handles.dlg.file_name,'String'));
 	if dlg_name==0
 		return;
 	end
