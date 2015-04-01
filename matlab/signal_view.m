@@ -13,7 +13,7 @@ function signal_view(cfg)
 	if ~isfield(cfg,'frame_shift');			cfg.frame_shift = 0.005;			end
 	if ~isfield(cfg,'fft_size');			cfg.fft_size = 512;					end
 	if ~isfield(cfg,'preemphasis');			cfg.preemphasis = 'adaptive';		end
-	if ~isfield(cfg,'window');				cfg.window = 'hamming';				end
+	if ~isfield(cfg,'window');				cfg.window = 'hann';				end
 	if ~isfield(cfg,'F0');					cfg.F0 = [80 500];					end
 	if ~isfield(cfg,'roots_threshold');		cfg.roots_threshold = sqrt(0.5);	end
 	if ~isfield(cfg,'display_spectrogram');	cfg.display_spectrogram = 'lpc';	end % 'display_spectrogram' must be either 'lpc' either 'fft'
@@ -57,7 +57,7 @@ function signal_view(cfg)
 	cfg.T0=sort(min(frame_size, round(cfg.fs./cfg.F0)));
 	
 	if not(isfield(cfg,'lpc_order')) || cfg.lpc_order==0
-		cfg.lpc_order=round(cfg.fs/1000)+4;
+		cfg.lpc_order=round(1.5*cfg.fs/1000);
 	end
 
 	%% Waveform display
@@ -65,7 +65,7 @@ function signal_view(cfg)
 	fig=figure(	'NumberTitle','off', 'Name',fig_file_name, 'ToolBar','figure', 'Units','normalized', ...
 				'Position',[0 0 1 1], 'WindowButtonDownFcn',@OnMouseDown, 'KeyPressFcn',@OnKeyPress);
 
-	signal_subplot=axes('Units','normalized', 'Position',[0.06 0.75 0.92 0.20]);
+	subplot.signal=axes('Units','normalized', 'Position',[0.06 0.75 0.92 0.20]);
 	plot((0:length(x)-1)/cfg.fs, x);
 	x_lim=[0 length(x)-1]/cfg.fs;
 	signal_lim=max(abs(x))*1.1*[-1 1];
@@ -81,8 +81,12 @@ function signal_view(cfg)
 		plot_regions_str(region_pos, [0.5 0.5 0.5], 0.5, 'k', region_name);
 	end
 	
+	subplot.position = axes('Units','normalized', 'Position',[0.06 0.70 0.92 0.02], ...
+							'XLim',x_lim, 'XTick',[], 'YLim',[0 1], 'YTick',[]);
+	subplot.position_patch = patch('Vertices',[0 0 0; 0 1 0; x_lim(2) 1 0; x_lim(2) 0 0], 'Faces',[1 2 3; 1 3 4], 'FaceVertexCData',repmat([0 0 1],4,1), 'FaceColor','flat', 'EdgeColor','none');
+
 	%% Calculate observations: LPC spectrogramm, LSFs, roots
-	spectrum_subplot=axes('Units','normalized', 'Position',[0.06 0.42 0.92 0.30]);
+	subplot.spectrum=axes('Units','normalized', 'Position',[0.06 0.39 0.92 0.30]);
 	frames_num=fix((size(x,1)-frame_size)/frame_shift+1);
 	lsf_obs=zeros(frames_num,cfg.lpc_order);
 	time_obs=((0:frames_num-1)'*frame_shift+frame_size/2)/cfg.fs;
@@ -190,6 +194,7 @@ function signal_view(cfg)
 	if isfield(cfg,'display_palette')
 		setcolormap(cfg.display_palette);
 	end
+	set(subplot.spectrum, 'XTickLabel','');
 
 	hold('on');
 
@@ -205,30 +210,27 @@ function signal_view(cfg)
 %				axes('Units','normalized', 'Position',[0.70 0.08 0.28 0.28])];
 
 	%% GUI setup
-	ctrl_pos=get(signal_subplot,'Position');
+	ctrl_pos=get(subplot.signal,'Position');
 	btn_play=uicontrol('Parent',fig, 'Style','pushbutton', 'String','Play view', 'Units','normalized', ...
 			'Position',[ctrl_pos(1)+ctrl_pos(3)-0.075 ctrl_pos(2)+ctrl_pos(4) 0.075 0.03], 'Callback', @OnPlaySignal);
 	ui_show_lsf =	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show LSF',			'Units','normalized',	'Position',[ctrl_pos(1)	  ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],		'Value',cfg.show_lsf,			'Callback', @OnShowLSF);
 	ui_show_strong=	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show strong roots',	'Units','normalized',	'Position',[ctrl_pos(1)+0.10 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	'Value',cfg.show_strong_roots,	'Callback', @OnShowStrongRoots);
 	ui_show_weak =	uicontrol('Parent',fig,	'Style','checkbox',	'String','Show weak roots',		'Units','normalized',	'Position',[ctrl_pos(1)+0.20 ctrl_pos(2)+ctrl_pos(4) 0.10 0.03],	'Value',cfg.show_weak_roots,	'Callback', @OnShowWeakRoots);
 	
-	pan('xon');
-	zoom('xon');
-	zoom('off');
-	set(zoom,'ActionPostCallback',@OnZoomPan);
-	set(pan ,'ActionPostCallback',@OnZoomPan);
+	set(zoom,'ActionPostCallback',@OnZoomPan, 'Motion','horizontal');
+	set(pan ,'ActionPostCallback',@OnZoomPan, 'Motion','horizontal');
 
 	player = audioplayer(x, cfg.fs);
 	set(player, 'StartFcn',@CallbackPlay, 'StopFcn',@CallbackPlayStop, ...
 				'TimerFcn',@CallbackPlay, 'UserData',struct('caret',caret, 'btn_play',btn_play), 'TimerPeriod',1/25);
 
 	data = guihandles(fig);
-	sig_pos=get(signal_subplot,'Position');
-	spec_pos=get(spectrum_subplot,'Position');
+	sig_pos=get(subplot.signal,'Position');
+	spec_pos=get(subplot.spectrum,'Position');
 	data.user_data = struct('cfg',cfg, 'player',player, 'frame_size',frame_size, 'frame_shift',frame_shift, ...
 		'signal',x, 'signal_lim',signal_lim, 'spec_minmax',spec_minmax, ...
 		'lsf_tracks',lsf_tracks, 'roots_strong_tracks',roots_strong_tracks, 'roots_weak_tracks',roots_weak_tracks, ...
-		'signal_subplot',signal_subplot, 'spectrum_subplot',spectrum_subplot, 'btn_play',btn_play, ...
+		'subplot',subplot, 'btn_play',btn_play, ...
 		'stat_rect',[spec_pos(1:2) sig_pos(1:2)+sig_pos(3:4)], 'stat_caret',stat_caret, 'stat_axes',stat_axes);
 	guidata(fig,data);
 
@@ -373,7 +375,7 @@ function UpdateFrameStat(data, x_pos, is_save_xlim)
 	plot(stat_axes(1),	fft_freq,max(-2000,20*log10(abs(cur_fft))),'b', ...
 						cur_w*cfg.fs/2/pi,20*log10(abs(cur_H)),'r', ...
 						fft_freq,noise_H,'k');
-	grid(stat_axes(1), 'on');	xlabel(stat_axes(1),'Frequency, Hz');	title(stat_axes(1),'Power spectrum, dB');
+	grid(stat_axes(1), 'on');	xlabel(stat_axes(1),'Frequency, Hz');	ylabel(stat_axes(1),'Power spectrum, dB');
 	legend(stat_axes(1), {'FFT spectrum','LPC envepole','Real cepstrum envepole'}, 'Location','SW');
 	legend(stat_axes(1), 'boxoff');
 	axis(stat_axes(1), [0 cfg.fs/2 data.user_data.spec_minmax]);
@@ -401,7 +403,7 @@ function OnShowStrongRoots(hObject, eventdata) %#ok<*INUSD>
 		is_show='off';
 	end
 	set(data.user_data.roots_strong_tracks, 'Visible', is_show);
-	zlim(data.user_data.spectrum_subplot, [-1 1]);
+	zlim(data.user_data.subplot.spectrum, [-1 1]);
 end
 
 function OnShowWeakRoots(hObject, eventdata)
@@ -412,7 +414,7 @@ function OnShowWeakRoots(hObject, eventdata)
 		is_show='off';
 	end
 	set(data.user_data.roots_weak_tracks, 'Visible', is_show);
-	zlim(data.user_data.spectrum_subplot, [-1 1]);
+	zlim(data.user_data.subplot.spectrum, [-1 1]);
 end
 
 function OnShowLSF(hObject, eventdata)
@@ -423,7 +425,7 @@ function OnShowLSF(hObject, eventdata)
 		is_show='off';
 	end
 	arrayfun(@(x) set(x,'Visible',is_show), data.user_data.lsf_tracks);
-	zlim(data.user_data.spectrum_subplot, [-1 1]);
+	zlim(data.user_data.subplot.spectrum, [-1 1]);
 end
 
 function OnPlaySignal(hObject, eventdata)
@@ -453,23 +455,37 @@ end
 
 function OnZoomPan(hObject, eventdata)
 	data = guidata(hObject);
-	zlim(data.user_data.spectrum_subplot, [-1 1]);
+	zlim(data.user_data.subplot.spectrum, [-1 1]);
 
-	if eventdata.Axes==data.user_data.signal_subplot || eventdata.Axes==data.user_data.spectrum_subplot
-		x_lim=correct_range(xlim(), [0 data.user_data.player.TotalSamples/data.user_data.player.SampleRate]);
-		set(data.user_data.signal_subplot, 'XLim',x_lim);% , 'YLim',data.user_data.signal_lim);
-		set(data.user_data.spectrum_subplot, 'XLim',x_lim);%, 'YLim',[0 data.user_data.player.SampleRate/2]);
-		return
+	ud = data.user_data;
+	if any(eventdata.Axes==[ud.subplot.signal ud.subplot.spectrum ud.subplot.position])
+		x_lim = xlim();
+		rg = x_lim(2)-x_lim(1);
+		x_len = data.user_data.player.TotalSamples/data.user_data.player.SampleRate;
+		if eventdata.Axes==ud.subplot.position % Scroll on position axes
+			pv = get(ud.subplot.position_patch, 'Vertices');
+			x_lim = (pv([1 3],1) - x_lim(1))*x_len/rg;
+		end
+		x_lim=correct_range(x_lim, [0 x_len]);
+		set(ud.subplot.signal,   'XLim',x_lim);%, 'YLim',data.user_data.signal_lim);
+		set(ud.subplot.spectrum, 'XLim',x_lim);%, 'YLim',[0 data.user_data.player.SampleRate/2]);
+		set(ud.subplot.position, 'XLim',x_lim);
+
+		pv = get(ud.subplot.position_patch, 'Vertices');
+		rg = x_lim(2)-x_lim(1);
+		pv([1 2],1) = x_lim(1) + x_lim(1)*rg/x_len;
+		pv([3 4],1) = x_lim(1) + x_lim(2)*rg/x_len;
+		set(ud.subplot.position_patch, 'Vertices',pv);
 	end
 
 	if any(eventdata.Axes==data.user_data.stat_axes)
 		x_lim=correct_range(xlim(), [0 data.user_data.player.SampleRate/2]);
 		set(eventdata.Axes, 'XLim',x_lim);
 	end
-	if any(eventdata.Axes==data.user_data.stat_axes(2:3))
-		y_lim=correct_range(ylim(), [0 data.user_data.player.SampleRate/4]);
-		set(eventdata.Axes, 'YLim',y_lim);
-	end
+%	if any(eventdata.Axes==data.user_data.stat_axes(2:3))
+%		y_lim=correct_range(ylim(), [0 data.user_data.player.SampleRate/4]);
+%		set(eventdata.Axes, 'YLim',y_lim);
+%	end
 end
 
 function x_lim=correct_range(x_lim, x_range)
@@ -490,7 +506,7 @@ function OnMouseDown(hObject, eventdata)
 		mouse_pos(2)<data.user_data.stat_rect(2) || mouse_pos(2)>data.user_data.stat_rect(4)
 		return
 	end
-	x_lim = get(data.user_data.signal_subplot, 'XLim');
+	x_lim = get(data.user_data.subplot.signal, 'XLim');
 	x_pos = (mouse_pos(1)-data.user_data.stat_rect(1))*diff(x_lim)/(data.user_data.stat_rect(3)-data.user_data.stat_rect(1))+x_lim(1);
 
 	UpdateFrameStat(data, x_pos);
@@ -684,8 +700,8 @@ function [cfg, press_OK]=settings_dlg(cfg)
 
 
 	ui_ctrl_pos=[ui_ctrl_pos(1:2) dlg_width-3 3];
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','(C) Andrei Davydov (agdavydov81@gmail.com)',  'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-38 ui_ctrl_pos(4)],	'HorizontalAlignment','left');
-	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Version 1.0.0.7 2015/03/25 22:39:29',			'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2)-1.2 ui_ctrl_pos(3)-38 ui_ctrl_pos(4)-1],  'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','(C) Andrei Davydov (agdavydov81@gmail.com)', 'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2) ui_ctrl_pos(3)-38 ui_ctrl_pos(4)],	'HorizontalAlignment','left');
+	uicontrol('Parent',dlg.handle,  'Style','text',  'String','Version 1.0.0.8 2015/04/02 01:48:53',		'Units','characters',  'Position',[ui_ctrl_pos(1) ui_ctrl_pos(2)-1.2 ui_ctrl_pos(3)-38 ui_ctrl_pos(4)-1],  'HorizontalAlignment','left');
 
 	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String','OK',	  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-37 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgOK);
 	uicontrol('Parent',dlg.handle,  'Style','pushbutton',  'String',gtxt.translate('Cancel'),  'Units','characters',  'Position',[ui_ctrl_pos(1)+ui_ctrl_pos(3)-18 ui_ctrl_pos(2) 18 ui_ctrl_pos(4)],  'Callback',@OnSettingsDlgCancel);
