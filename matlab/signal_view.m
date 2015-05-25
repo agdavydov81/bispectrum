@@ -103,17 +103,25 @@ function signal_view(cfg)
 	ind=1:frame_shift:size(x,1)-frame_size+1;
 
 	try
-		if frames_num>300 && matlabpool('size')==0
-			local_jm=findResource('scheduler','type','local');
-			if local_jm.ClusterSize>1 && ... 
-				strcmp(questdlg({'No matlabpool opened.' ...
-					'Matlab pool usage can significantly increase analysis performance.' ...
-					'Open local matlabpool?'},'Parallel computations','Yes','No','Yes'),'Yes')
-				matlabpool('local');
+		if exist('parpool','file')
+			p = gcp('nocreate');
+			if isempty(p)
+				c = parcluster();
+				if c.NumWorkers>1 && pool_dlg(handles)
+					parpool();
+				end
+				pause(0.2);
 			end
-			pause(0.2);
+		else
+			if matlabpool('size')==0 %#ok<DPOOL> % R2011b
+				local_jm = findResource('scheduler','type','local'); %#ok<DFNDR>
+				if local_jm.ClusterSize>1 && pool_dlg(handles)
+					matlabpool('local'); %#ok<DPOOL>
+				end
+				pause(0.2);
+			end
 		end
-	catch %#ok<CTCH>
+	catch
 	end
 
 	if strcmp(cfg.display_spectrogram,'lpc')

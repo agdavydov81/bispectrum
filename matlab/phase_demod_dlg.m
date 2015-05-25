@@ -45,7 +45,7 @@ end
 
 
 % --- Executes just before phase_demod_dlg is made visible.
-function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin)
+function phase_demod_dlg_OpeningFcn(hObject, eventdata, handles, varargin) %#ok<*INUSL>
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -93,7 +93,7 @@ varargout{1} = handles.output;
 
 
 % --- Executes on button press in inputfile_btn.
-function inputfile_btn_Callback(hObject, eventdata, handles)
+function inputfile_btn_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
 % hObject    handle to inputfile_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -138,11 +138,13 @@ function process_btn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 filename = get(handles.inputfile_edit,'String');
-if any(exist('libsndfile_read')==[2 3])
+if exist('audioread','file')
+	[x,fs] = audioread(filename);
+elseif exist('libsndfile_read','file')
 	[x,x_info] = libsndfile_read(filename);
 	fs = x_info.SampleRate;
 else
-	[x,fs] = wavread(filename);
+	[x,fs] = wavread(filename); %#ok<*DWVRD>
 end
 x(:,2:end) = [];
 if get(handles.inputfile_invert,'Value')
@@ -150,10 +152,10 @@ if get(handles.inputfile_invert,'Value')
 end
 
 eval(['F=' get(handles.freq_f,'String') ';']);
-F = F(:)';
+F = F(:)'; %#ok<NODEF>
 Kk = str2double_my(get(handles.freq_k,'String'));
 eval(['theta=' get(handles.freq_phase_shift,'String') ';']);
-theta = theta(1); % parfor fix
+theta = theta(1); %#ok<NODEF> % parfor fix
 isclip = get(handles.freq_isclip,'Value');
 is_freq_hilbert = get(handles.freq_hilbert,'Value');
 
@@ -183,14 +185,25 @@ report_str = {	['F=' get(handles.freq_f,'String') 'Ãö; Kk=' num2str(Kk) '; \thet
 usepool = false;
 try
 	if get(handles.gui_usepool,'Value')
-		if matlabpool('size')==0
-			local_jm=findResource('scheduler','type','local');
-			if local_jm.ClusterSize>1
-				matlabpool('local');
+		if exist('parpool','file')
+			p = gcp('nocreate');
+			if isempty(p)
+				c = parcluster();
+				if c.NumWorkers>1
+					parpool();
+				end
+				pause(0.2);
 			end
-		end
-		if matlabpool('size')>0
-			usepool = true;
+			usepool = ~isempty(gcp('nocreate'));
+		else
+			if matlabpool('size')==0 %#ok<DPOOL> % R2011b
+				local_jm = findResource('scheduler','type','local'); %#ok<DFNDR>
+				if local_jm.ClusterSize>1 && pool_dlg(handles)
+					matlabpool('local'); %#ok<DPOOL>
+				end
+				pause(0.2);
+			end
+			usepool = matlabpool('size')>0; %#ok<DPOOL>
 		end
 	end
 catch
@@ -239,7 +252,7 @@ Y = cell2mat(Y);
 x(end-ord2+1:end) = [];
 t(end-ord2+1:end) = [];
 
-[cur_dir, cur_name] = fileparts(filename);
+[cur_dir, cur_name] = fileparts(filename); %#ok<*ASGLU>
 figure('NumberTitle','off', 'Name',cur_name, 'Units','normalized', 'Position',[0 0 1 1]);
 subplot(2,1,1);
 plot(t,x);
@@ -288,7 +301,7 @@ end
 y = x.*y;
 
 
-function on_zoom_pan(hObject, eventdata)
+function on_zoom_pan(hObject, eventdata) %#ok<*INUSD>
 %	Usage example:
 %	set(zoom,'ActionPostCallback',@on_zoom_pan);
 %	set(pan ,'ActionPostCallback',@on_zoom_pan);
@@ -366,11 +379,13 @@ function filterlp_view_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 filename = get(handles.inputfile_edit,'String');
-if any(exist('libsndfile_read')==[2 3])
-	x_info = libsndfile_info(filename);
+if exist('audioread','file')
+	[x,fs] = audioread(filename);
+elseif exist('libsndfile_read','file')
+	[x,x_info] = libsndfile_read(filename);
 	fs = x_info.SampleRate;
 else
-	[x,fs] = wavread(filename);
+	[x,fs] = wavread(filename); %#ok<*DWVRD>
 end
 fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
 w = fc*2/fs;
