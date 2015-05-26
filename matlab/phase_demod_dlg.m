@@ -22,7 +22,7 @@ function varargout = phase_demod_dlg(varargin)
 
 % Edit the above text to modify the response to help phase_demod_dlg
 
-% Last Modified by GUIDE v2.5 09-Mar-2015 16:51:04
+% Last Modified by GUIDE v2.5 25-May-2015 19:32:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -70,12 +70,20 @@ try
 		end
 	end
 
-	set(hObject,'Position',dlg_cfg.position);
+	% Position to center of screen
+	old_units = get(hObject,'Units');
+	scr_sz = get(0,'ScreenSize');
+	set(hObject,'Units',get(0,'Units'));
+	cur_pos = get(hObject,'Position');
+	set(hObject,'Position',[(scr_sz(3)-cur_pos(3))/2, (scr_sz(4)-cur_pos(4))/2, cur_pos([3 4])]);
+	set(hObject,'Units',old_units); 	
 catch
 end
 
 % Update handles structure
 guidata(hObject, handles);
+
+is_framing_Callback(handles.is_framing, [], handles);
 
 % UIWAIT makes phase_demod_dlg wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
@@ -92,12 +100,17 @@ function varargout = phase_demod_dlg_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on button press in inputfile_btn.
-function inputfile_btn_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
-% hObject    handle to inputfile_btn (see GCBO)
+% --- Executes on button press in inputfile_sel_btn.
+function inputfile_sel_btn_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
+% hObject    handle to inputfile_sel_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Выберите файл для обработки',get(handles.inputfile_edit,'String'));
+if exist('audioread','file') || exist('libsndfile_read','file')
+	dlg_filter = {'*.wav;*.flac;*.ogg;*.mp3','Sound files';'*.*','All files'};
+else
+	dlg_filter = {'*.wav','Wave files (*.wav)';'*.*','All files'};
+end
+[dlg_name,dlg_path]=uigetfile(dlg_filter,'Выберите файл для обработки',get(handles.inputfile_edit,'String'));
 if dlg_name==0
 	return
 end
@@ -124,8 +137,6 @@ for fi = 1:numel(fl)
 	end
 end
 
-dlg_cfg.position = get(hObject,'Position');
-
 save([mfilename '_cfg.mat'], 'dlg_cfg');
 
 % Hint: delete(hObject) closes the figure
@@ -137,52 +148,57 @@ function process_btn_Callback(hObject, eventdata, handles)
 % hObject    handle to process_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-filename = get(handles.inputfile_edit,'String');
+[cfg, x, fs, t] = prepare_data(handles);
+[Y, x, t] = process_data(cfg, x, fs, t);
+display_data(handles, cfg, x, fs, t, Y);
+
+function [cfg, x, fs, t] = prepare_data(handles)
+cfg.filename = get(handles.inputfile_edit,'String');
 if exist('audioread','file')
-	[x,fs] = audioread(filename);
+	[x,fs] = audioread(cfg.filename);
 elseif exist('libsndfile_read','file')
-	[x,x_info] = libsndfile_read(filename);
+	[x,x_info] = libsndfile_read(cfg.filename);
 	fs = x_info.SampleRate;
 else
-	[x,fs] = wavread(filename); %#ok<*DWVRD>
+	[x,fs] = wavread(cfg.filename); %#ok<*DWVRD>
 end
 x(:,2:end) = [];
 if get(handles.inputfile_invert,'Value')
 	x = x(end:-1:1,:);
 end
 
-eval(['F=' get(handles.freq_f,'String') ';']);
-F = F(:)'; %#ok<NODEF>
-Kk = str2double_my(get(handles.freq_k,'String'));
-eval(['theta=' get(handles.freq_phase_shift,'String') ';']);
-theta = theta(1); %#ok<NODEF> % parfor fix
-isclip = get(handles.freq_isclip,'Value');
-is_freq_hilbert = get(handles.freq_hilbert,'Value');
+eval(['cfg.F=' get(handles.freq_f,'String') ';']);
+cfg.F = cfg.F(:)';
+cfg.Kk = str2double_my(get(handles.freq_k,'String'));
+eval(['cfg.theta=' get(handles.freq_phase_shift,'String') ';']);
+cfg.theta = cfg.theta(1);
+cfg.isclip = get(handles.freq_isclip,'Value');
+cfg.is_freq_hilbert = get(handles.freq_hilbert,'Value');
 
 isclip_str = 'Клипирование ';
-if isclip
+if cfg.isclip
 	isclip_str = [isclip_str 'ВКЛ.'];
 else
 	isclip_str = [isclip_str 'ВЫКЛ.'];
 end
 is_freq_hilbert_str = 'Фазовращение ВЧ сигнала ';
-if is_freq_hilbert
+if cfg.is_freq_hilbert
 	is_freq_hilbert_str = [is_freq_hilbert_str 'ВКЛ.'];
 else
 	is_freq_hilbert_str = [is_freq_hilbert_str 'ВЫКЛ.'];
 end
 
-fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
-b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), fc*2/fs);
-ord2 = fix(numel(b)/2);
+cfg.fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
+cfg.b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), cfg.fc*2/fs);
+cfg.ord2 = fix(numel(cfg.b)/2);
 
-x = [x; zeros(ord2,1)];
+x = [x; zeros(cfg.ord2,1)];
 t = (0:size(x,1)-1)'/fs;
 
-report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(Kk) '; \theta=' num2str(theta) '; ' isclip_str ';' is_freq_hilbert_str ';'] ...
-				['Fs=' num2str(fs) 'Гц; НЧ КИХ фильтр (Fc=' num2str(fc) 'Гц, порядок ' num2str(numel(b)) ');']};
+cfg.report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(cfg.Kk) '; \theta=' num2str(cfg.theta) '; ' isclip_str ';' is_freq_hilbert_str ';'] ...
+					['Fs=' num2str(fs) 'Гц; НЧ КИХ фильтр (Fc=' num2str(cfg.fc) 'Гц, порядок ' num2str(numel(cfg.b)) ');']};
 
-usepool = false;
+cfg.usepool = false;
 try
 	if get(handles.gui_usepool,'Value')
 		if exist('parpool','file')
@@ -194,7 +210,7 @@ try
 				end
 				pause(0.2);
 			end
-			usepool = ~isempty(gcp('nocreate'));
+			cfg.usepool = ~isempty(gcp('nocreate'));
 		else
 			if matlabpool('size')==0 %#ok<DPOOL> % R2011b
 				local_jm = findResource('scheduler','type','local'); %#ok<DFNDR>
@@ -203,80 +219,84 @@ try
 				end
 				pause(0.2);
 			end
-			usepool = matlabpool('size')>0; %#ok<DPOOL>
+			cfg.usepool = matlabpool('size')>0; %#ok<DPOOL>
 		end
 	end
 catch
 end
 
 
-Y = cell(size(F));
-if usepool
-	parfor fi = 1:numel(F)
-		x_lo = proc_signal(x, F(fi), t, 0, isclip, false);
-		if is_freq_hilbert
+function [Y, x, t] = process_data(cfg, x, fs, t)
+Y = cell(size(cfg.F));
+if cfg.usepool
+	parfor fi = 1:numel(cfg.F)
+		x_lo = proc_signal(x, cfg.F(fi), t, 0, cfg.isclip, false);
+		if cfg.is_freq_hilbert
 			x_hi = -imag(hilbert(x));
 		else
 			x_hi = x;
 		end
-		x_hi = proc_signal(x_hi, Kk*F(fi), t, theta, isclip, is_freq_hilbert);
-		if is_freq_hilbert
+		x_hi = proc_signal(x_hi, cfg.Kk*cfg.F(fi), t, cfg.theta, cfg.isclip, cfg.is_freq_hilbert);
+		if cfg.is_freq_hilbert
 			Yp = x_lo + x_hi;
 		else
 			Yp = x_lo - x_hi;
 		end
-		Yp = filter(b,1, Yp);
-		Yp(1:fix(numel(b)/2)) = [];
+		Yp = filter(cfg.b,1, Yp);
+		Yp(1:fix(numel(cfg.b)/2)) = [];
 		Y{fi} = Yp;
 	end
 else
-	for fi = 1:numel(F)
-		x_lo = proc_signal(x, F(fi), t, 0, isclip, false);
-		if is_freq_hilbert
+	for fi = 1:numel(cfg.F)
+		x_lo = proc_signal(x, cfg.F(fi), t, 0, cfg.isclip, false);
+		if cfg.is_freq_hilbert
 			x_hi = -imag(hilbert(x));
 		else
 			x_hi = x;
 		end
-		x_hi = proc_signal(x_hi, Kk*F(fi), t, theta, isclip, is_freq_hilbert);
-		if is_freq_hilbert
+		x_hi = proc_signal(x_hi, cfg.Kk*cfg.F(fi), t, cfg.theta, cfg.isclip, cfg.is_freq_hilbert);
+		if cfg.is_freq_hilbert
 			Yp = x_lo + x_hi;
 		else
 			Yp = x_lo - x_hi;
 		end
-		Yp = filter(b,1, Yp);
-		Yp(1:fix(numel(b)/2)) = [];
+		Yp = filter(cfg.b,1, Yp);
+		Yp(1:fix(numel(cfg.b)/2)) = [];
 		Y{fi} = Yp;
 	end
 end
 Y = cell2mat(Y);
-x(end-ord2+1:end) = [];
-t(end-ord2+1:end) = [];
+x(end-cfg.ord2+1:end) = [];
+t(end-cfg.ord2+1:end) = [];
 
-[cur_dir, cur_name] = fileparts(filename); %#ok<*ASGLU>
+
+function display_data(handles, cfg, x, fs, t, Y)
+[cur_dir, cur_name] = fileparts(cfg.filename); %#ok<*ASGLU>
 figure('NumberTitle','off', 'Name',cur_name, 'Units','normalized', 'Position',[0 0 1 1]);
 subplot(2,1,1);
 plot(t,x);
 x_lim = t([1 end])';
 axis([x_lim max(abs(x))*1.1*[-1 1]]);
-title(filename,'Interpreter','none');
+title(cfg.filename,'Interpreter','none');
 
 subplot(2,1,2);
 if size(Y,2) == 1
 	plot(t,Y);
 	xlim(x_lim);
 else
-	imagesc(t,F,Y');
+	imagesc(t,cfg.F,Y');
 	pal = get(handles.gui_palette,'String');
 	pal = pal{get(handles.gui_palette,'Value')};
 	colormap(getcolormap(pal));
 	axis('xy');
 end
-title(report_str);
+title(cfg.report_str);
 
 set(zoom,'ActionPostCallback',@on_zoom_pan);
 set(pan ,'ActionPostCallback',@on_zoom_pan);
 zoom('xon');
 set(pan, 'Motion', 'horizontal');
+
 
 
 function x = str2double_my(str)
@@ -400,3 +420,27 @@ grid('on');
 title(sprintf('АЧХ НЧ КИХ фильтра, частота среза %s Гц, порядок %d, частота дискретизации %s Гц',num2str(fc),numel(b),num2str(fs)), 'interpreter','none');
 xlabel('Частота, Гц');
 ylabel('Амплитуда, дБ');
+
+
+% --- Executes on button press in is_framing.
+function is_framing_Callback(hObject, eventdata, handles)
+% hObject    handle to is_framing (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of is_framing
+if get(hObject,'Value')
+	state_str = 'on';
+else
+	state_str = 'off';
+end
+set(handles.frame_size_edit,'Enable',state_str);
+set(handles.frame_shift_edit,'Enable',state_str);
+
+
+% --- Executes on button press in inputfile_play_btn.
+function inputfile_play_btn_Callback(hObject, eventdata, handles)
+% hObject    handle to inputfile_play_btn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+dos(['start "" "' get(handles.inputfile_edit,'String') '"']);
