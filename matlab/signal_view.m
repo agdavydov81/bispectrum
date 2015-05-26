@@ -740,11 +740,11 @@ function OnFileNameSel(hObject, eventdata)
 	end
 
 	handles=guidata(hObject);
-    if exist('libsndfile_read','file')
-        dlg_filter = {'*.wav;*.flac;*.ogg','Sound files';'*.*','All files'};
-    else
-        dlg_filter = {'*.wav','Wave files (*.wav)';'*.*','All files'};
-    end
+	if exist('audioread','file') || exist('libsndfile_read','file')
+		dlg_filter = {'*.wav;*.flac;*.ogg;*.mp3','Sound files';'*.*','All files'};
+	else
+		dlg_filter = {'*.wav','Wave files (*.wav)';'*.*','All files'};
+	end
    	[dlg_name,dlg_path]=uigetfile(dlg_filter,gtxt.translate('Select file for processing'),get(handles.dlg.file_name,'String'));
 	if dlg_name==0
 		return;
