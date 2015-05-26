@@ -192,11 +192,22 @@ cfg.fc = str2double_my(get(handles.filterlp_cutoff_edit,'String'));
 cfg.b = fir1(round(str2double_my(get(handles.filterlp_order_edit,'String'))*fs), cfg.fc*2/fs);
 cfg.ord2 = fix(numel(cfg.b)/2);
 
+cfg.is_framing = get(handles.is_framing, 'Value');
+cfg.frame_size = str2double_my(get(handles.frame_size_edit, 'String'));
+cfg.frame_shift = str2double_my(get(handles.frame_shift_edit, 'String'));
+cfg.frame_shift = min(cfg.frame_shift, cfg.frame_size);
+is_framing_str = 'Покадровая обработка ';
+if cfg.is_framing
+	is_framing_str = [is_framing_str 'ВКЛ.(Размер кадра ' num2str(cfg.frame_size) 'мс, Смещение между кадрами ' num2str(cfg.frame_shift) 'мс)'];
+else
+	is_framing_str = [is_framing_str 'ВЫКЛ.'];
+end
+
 x = [x; zeros(cfg.ord2,1)];
 t = (0:size(x,1)-1)'/fs;
 
-cfg.report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(cfg.Kk) '; \theta=' num2str(cfg.theta) '; ' isclip_str ';' is_freq_hilbert_str ';'] ...
-					['Fs=' num2str(fs) 'Гц; НЧ КИХ фильтр (Fc=' num2str(cfg.fc) 'Гц, порядок ' num2str(numel(cfg.b)) ');']};
+cfg.report_str = {	['F=' get(handles.freq_f,'String') 'Гц; Kk=' num2str(cfg.Kk) '; \theta=' num2str(cfg.theta) '; ' isclip_str ';' is_freq_hilbert_str '; Fs=' num2str(fs) 'Гц;'] ...
+					['НЧ КИХ фильтр (Fc=' num2str(cfg.fc) 'Гц, порядок ' num2str(numel(cfg.b)) '); ' is_framing_str ';']};
 
 cfg.usepool = false;
 try
@@ -230,44 +241,33 @@ function [Y, x, t] = process_data(cfg, x, fs, t)
 Y = cell(size(cfg.F));
 if cfg.usepool
 	parfor fi = 1:numel(cfg.F)
-		x_lo = proc_signal(x, cfg.F(fi), t, 0, cfg.isclip, false);
-		if cfg.is_freq_hilbert
-			x_hi = -imag(hilbert(x));
-		else
-			x_hi = x;
-		end
-		x_hi = proc_signal(x_hi, cfg.Kk*cfg.F(fi), t, cfg.theta, cfg.isclip, cfg.is_freq_hilbert);
-		if cfg.is_freq_hilbert
-			Yp = x_lo + x_hi;
-		else
-			Yp = x_lo - x_hi;
-		end
-		Yp = filter(cfg.b,1, Yp);
-		Yp(1:fix(numel(cfg.b)/2)) = [];
-		Y{fi} = Yp;
+		Y{fi} = for_body(cfg.F(fi), cfg, x, fs, t);
 	end
 else
 	for fi = 1:numel(cfg.F)
-		x_lo = proc_signal(x, cfg.F(fi), t, 0, cfg.isclip, false);
-		if cfg.is_freq_hilbert
-			x_hi = -imag(hilbert(x));
-		else
-			x_hi = x;
-		end
-		x_hi = proc_signal(x_hi, cfg.Kk*cfg.F(fi), t, cfg.theta, cfg.isclip, cfg.is_freq_hilbert);
-		if cfg.is_freq_hilbert
-			Yp = x_lo + x_hi;
-		else
-			Yp = x_lo - x_hi;
-		end
-		Yp = filter(cfg.b,1, Yp);
-		Yp(1:fix(numel(cfg.b)/2)) = [];
-		Y{fi} = Yp;
+		Y{fi} = for_body(cfg.F(fi), cfg, x, fs, t);
 	end
 end
 Y = cell2mat(Y);
 x(end-cfg.ord2+1:end) = [];
 t(end-cfg.ord2+1:end) = [];
+
+
+function Yp = for_body(F, cfg, x, fs, t)
+x_lo = proc_signal(x, F, t, 0, cfg.isclip, false);
+if cfg.is_freq_hilbert
+	x_hi = -imag(hilbert(x));
+else
+	x_hi = x;
+end
+x_hi = proc_signal(x_hi, cfg.Kk*F, t, cfg.theta, cfg.isclip, cfg.is_freq_hilbert);
+if cfg.is_freq_hilbert
+	Yp = x_lo + x_hi;
+else
+	Yp = x_lo - x_hi;
+end
+Yp = filter(cfg.b,1, Yp);
+Yp(1:fix(numel(cfg.b)/2)) = [];
 
 
 function display_data(handles, cfg, x, fs, t, Y)
