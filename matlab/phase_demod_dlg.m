@@ -152,7 +152,10 @@ function process_btn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 [cfg, x, fs, t] = prepare_data(handles);
 [Y, x, t] = process_data(cfg, x, fs, t);
-display_data(handles, cfg, x, fs, t, Y);
+if ~isempty(Y)
+	display_data(handles, cfg, x, fs, t, Y);
+end
+
 
 function [cfg, x, fs, t] = prepare_data(handles)
 cfg.filename = get(handles.inputfile_edit,'String');
@@ -260,7 +263,9 @@ t(end-cfg.b_ord2+1:end) = [];
 Y = [];
 
 tic();
-wait_hndl = waitbar(0);
+wait_hndl = waitbar(0, 'Progress...', 'CloseRequestFcn',@terminate_req);
+global phase_demod_dlg_closereq;
+phase_demod_dlg_closereq = false;
 
 ind = 1:frame_shift:size(x)-frame_size+1;
 for ind_i = 1:numel(ind)
@@ -277,7 +282,12 @@ for ind_i = 1:numel(ind)
 	a = toc*((numel(ind)/ind_i)-1);
 	rem_str = sprintf('%.0f%%; %02d:%02d:%02d remain...',ind_i*100/numel(ind), fix(a/3600), fix(rem(a,3600)/60), fix(rem(rem(a,3600),60)));
 	set(wait_hndl, 'Name',rem_str);
-	waitbar(ind_i/numel(ind),wait_hndl,['Progress ' rem_str]);	
+	waitbar(ind_i/numel(ind),wait_hndl,['Progress ' rem_str]);
+
+	if phase_demod_dlg_closereq
+		Y = [];
+		return
+	end
 end
 
 close(wait_hndl);
@@ -287,8 +297,15 @@ Y(ii,:) = [];
 x(ii,:) = [];
 t(ii,:) = [];
 
+function terminate_req(hObject, eventdata)
+global phase_demod_dlg_closereq;
+phase_demod_dlg_closereq = true;
+delete(hObject);
+
 
 function [Y, x, t] = process_data_stream(cfg, x, fs, t)
+global phase_demod_dlg_closereq;
+
 Y = cell(size(cfg.F));
 if cfg.usepool
 	parfor fi = 1:numel(cfg.F)
@@ -297,7 +314,8 @@ if cfg.usepool
 else
 	if ~cfg.is_framing
 		tic();
-		wait_hndl = waitbar(0);
+		wait_hndl = waitbar(0, 'Progress...', 'CloseRequestFcn',@terminate_req);
+		phase_demod_dlg_closereq = false;
 	end
 
 	for fi = 1:numel(cfg.F)
@@ -307,7 +325,12 @@ else
 			a = toc*((numel(cfg.F)/fi)-1);
 			rem_str = sprintf('%.0f%%; %02d:%02d:%02d remain...',fi*100/numel(cfg.F), fix(a/3600), fix(rem(a,3600)/60), fix(rem(rem(a,3600),60)));
 			set(wait_hndl, 'Name',rem_str);
-			waitbar(fi/numel(cfg.F),wait_hndl,['Progress ' rem_str]);	
+			waitbar(fi/numel(cfg.F),wait_hndl,['Progress ' rem_str]);
+			
+			if phase_demod_dlg_closereq
+				Y = [];
+				return
+			end
 		end
 	end
 
