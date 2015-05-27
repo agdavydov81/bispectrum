@@ -362,13 +362,13 @@ Yp(1:fix(numel(cfg.b)/2)) = [];
 function display_data(handles, cfg, x, fs, t, Y)
 [cur_dir, cur_name] = fileparts(cfg.filename); %#ok<*ASGLU>
 figure('NumberTitle','off', 'Name',cur_name, 'Units','normalized', 'Position',[0 0 1 1]);
-subplot(2,1,1);
+subplot(3,1,1);
 plot(t,x);
 x_lim = t([1 end])';
 axis([x_lim max(abs(x))*1.1*[-1 1]]);
 title(cfg.filename,'Interpreter','none');
 
-subplot(2,1,2);
+subplot(3,1,[2 3]);
 if size(Y,2) == 1
 	plot(t,Y);
 	xlim(x_lim);
