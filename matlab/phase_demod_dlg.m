@@ -85,8 +85,6 @@ guidata(hObject, handles);
 
 is_framing_Callback(handles.is_framing, [], handles);
 
-% process_btn_Callback([], [], handles)
-
 % UIWAIT makes phase_demod_dlg wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
