@@ -71,7 +71,7 @@ function speech_art()
 		cur_frame(1:end-signal.frame_size)=[];
 
 		% Preemphasis
-%		cur_frame = filter([1 -1],1,cur_frame);
+%		cur_frame = fftfilt([1 -1],cur_frame);
 		% Adaptive preemphasis
 		cur_frame = filter(lpc(cur_frame,1),1,cur_frame);
 

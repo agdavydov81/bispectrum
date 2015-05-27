@@ -143,7 +143,7 @@ function signal_view(cfg)
 			else
 				preemphasis_factor=cfg.preemphasis; %#ok<PFBNS>
 			end
-			cur_x=filter([1 -preemphasis_factor],1,cur_x);
+			cur_x=fftfilt([1 -preemphasis_factor],cur_x);
 		end
 
 		[cur_a, cur_err_pwr]=lpc(cur_x, cfg.lpc_order);
@@ -344,7 +344,7 @@ function UpdateFrameStat(data, x_pos, is_save_xlim)
 		else
 			preemphasis_factor=cfg.preemphasis;
 		end
-		cur_frame=filter([1 -preemphasis_factor],1,cur_frame);
+		cur_frame=fftfilt([1 -preemphasis_factor],cur_frame);
 	end
 
 	%% Current frame FFT spectrum

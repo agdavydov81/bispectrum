@@ -34,7 +34,7 @@ function bispectrum_view(cfg)
 	end
 
 	if cfg.is_preemphasis
-		x=filter([1 -1],1,x);
+		x=fftfilt([1 -1],x);
 	end
 
 	frame.size=round(cfg.frame_size*fs);

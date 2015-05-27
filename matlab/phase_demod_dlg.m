@@ -85,6 +85,8 @@ guidata(hObject, handles);
 
 is_framing_Callback(handles.is_framing, [], handles);
 
+% process_btn_Callback([], [], handles)
+
 % UIWAIT makes phase_demod_dlg wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
@@ -206,6 +208,7 @@ end
 cfg.frame_size = cfg.frame_size/1000;
 cfg.frame_shift = cfg.frame_shift/1000;
 
+x = [x; zeros(cfg.b_ord2,1)];
 t = (0:size(x,1)-1)'/fs;
 
 cfg.report_str = {	['F=' get(handles.freq_f,'String') 'Ãö; Kk=' num2str(cfg.Kk) '; \theta=' num2str(cfg.theta) '; ' isclip_str ';' is_freq_hilbert_str '; Fs=' num2str(fs) 'Ãö;'] ...
@@ -243,7 +246,7 @@ function [Y, x, t] = process_data(cfg, x, fs, t)
 if cfg.is_framing
 	[Y, x, t] = process_data_frames(cfg, x, fs, t);
 else
-	Y = process_data_stream(cfg, x, fs, t);
+	[Y, x, t] = process_data_stream(cfg, x, fs, t);
 end
 
 
@@ -252,6 +255,8 @@ frame_size = round(cfg.frame_size * fs);
 frame_shift = round(cfg.frame_shift * fs);
 frame_offset = fix((frame_size - frame_shift)/2);
 
+x(end-cfg.b_ord2+1:end) = [];
+t(end-cfg.b_ord2+1:end) = [];
 Y = [];
 
 tic();
@@ -261,7 +266,9 @@ ind = 1:frame_shift:size(x)-frame_size+1;
 for ind_i = 1:numel(ind)
 	ii = ind(ind_i);
 	cur_i = ii:ii+frame_size-1;
-	cur_Y = process_data_stream(cfg, x(cur_i), fs, t(cur_i));
+	cur_x = [x(cur_i); zeros(cfg.b_ord2,1)];
+	cur_t = (0:size(cur_x,1)-1)'/fs;
+	cur_Y = process_data_stream(cfg, cur_x , fs, cur_t);
 	if isempty(Y)
 		Y = nan(size(x,1), size(cur_Y,2));
 	end
@@ -281,18 +288,37 @@ x(ii,:) = [];
 t(ii,:) = [];
 
 
-function Y = process_data_stream(cfg, x, fs, t)
+function [Y, x, t] = process_data_stream(cfg, x, fs, t)
 Y = cell(size(cfg.F));
 if cfg.usepool
 	parfor fi = 1:numel(cfg.F)
 		Y{fi} = for_body(cfg.F(fi), cfg, x, fs, t);
 	end
 else
+	if ~cfg.is_framing
+		tic();
+		wait_hndl = waitbar(0);
+	end
+
 	for fi = 1:numel(cfg.F)
 		Y{fi} = for_body(cfg.F(fi), cfg, x, fs, t);
+
+		if ~cfg.is_framing
+			a = toc*((numel(cfg.F)/fi)-1);
+			rem_str = sprintf('%.0f%%; %02d:%02d:%02d remain...',fi*100/numel(cfg.F), fix(a/3600), fix(rem(a,3600)/60), fix(rem(rem(a,3600),60)));
+			set(wait_hndl, 'Name',rem_str);
+			waitbar(fi/numel(cfg.F),wait_hndl,['Progress ' rem_str]);	
+		end
 	end
+
+	if ~cfg.is_framing
+		close(wait_hndl);
+	end
+	
 end
 Y = cell2mat(Y);
+x(end-cfg.b_ord2+1:end) = [];
+t(end-cfg.b_ord2+1:end) = [];
 
 
 function Yp = for_body(F, cfg, x, fs, t)
@@ -308,7 +334,8 @@ if cfg.is_freq_hilbert
 else
 	Yp = x_lo - x_hi;
 end
-Yp = filt2way(cfg.b, 1, Yp, cfg.b_delay);
+Yp = fftfilt(cfg.b, Yp);
+Yp(1:fix(numel(cfg.b)/2)) = [];
 
 
 function display_data(handles, cfg, x, fs, t, Y)
