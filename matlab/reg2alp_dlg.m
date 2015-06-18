@@ -22,7 +22,7 @@ function varargout = reg2alp_dlg(varargin)
 
 % Edit the above text to modify the response to help reg2alp_dlg
 
-% Last Modified by GUIDE v2.5 02-Jun-2015 00:48:51
+% Last Modified by GUIDE v2.5 18-Jun-2015 11:54:34
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -211,19 +211,41 @@ kill_ind = ~cellfun(@isempty, regexp(reg_name, '^Cue \d+$', 'match','once'));
 reg_name(kill_ind) = [];
 reg_pos(kill_ind,:) = [];
 
+[sv,si] = sort(reg_pos(:,1));
+reg_name = reg_name(si);
+reg_pos = reg_pos(si,:);
+
 reg_pos(:,2) = reg_pos(:,1) + reg_pos(:,2) - 1;
 
 dir_path = get(handles.dir_edit,'String');
+if ~exist(dir_path,'dir')
+	mkdir(dir_path);
+end
 
 wait_h = waitbar(0,'Обработка', 'WindowStyle','modal');
 for ri = 1:size(reg_pos,1)
-	name_cnt = 0;
-	cur_name = '';
-	while name_cnt==0 || exist(cur_name,'file')
-		name_cnt = name_cnt + 1;
-		cur_name = fullfile(dir_path, sprintf('%s_(%03d).wav',reg_name{ri},name_cnt));
+	cur_dir = dir_path;
+	if get(handles.save_to_subfolders,'Value')
+		cur_dir = fullfile(cur_dir, regexprep(reg_name{ri},'\d*$',''));
+		if ~exist(cur_dir,'dir')
+			mkdir(cur_dir);
+		end
 	end
-	wavwrite(x(reg_pos(ri,1):reg_pos(ri,2)), fs, cur_name);
+
+	cur_name = fullfile(cur_dir, [reg_name{ri} '.wav']);
+
+	if get(handles.save_all_instances,'Value')
+		name_cnt = 0;
+		while exist(cur_name,'file')
+			name_cnt = name_cnt + 1;
+			cur_name = fullfile(cur_dir, sprintf('%s_(%03d).wav',reg_name{ri},name_cnt));
+		end
+	end
+
+	if ~exist(cur_name,'file')
+		wavwrite(x(reg_pos(ri,1):reg_pos(ri,2)), fs, cur_name);
+	end
+
 	waitbar(ri/size(reg_pos,1), wait_h, sprintf('Обработка %d/%d',ri,size(reg_pos,1)));
 end
 delete(wait_h);
