@@ -84,7 +84,7 @@ if exist('simplegettext','class')
 else
 	gtxt.translate = @gtxtloop;
 end
-traslate_ui(gtxt, hObject);
+translate_ui(gtxt, hObject);
 
 % Update handles structure
 guidata(hObject, handles);
@@ -97,10 +97,10 @@ function str_tr = gtxtloop(str_eng)
 str_tr = str_eng;
 
 
-function traslate_ui(gtxt,hObject)
+function translate_ui(gtxt,hObject)
 ch_list = get(hObject,'Children');
 for ci = 1:numel(ch_list)
-	traslate_ui(gtxt,ch_list(ci));
+	translate_ui(gtxt,ch_list(ci));
 end
 
 fl_name = '';

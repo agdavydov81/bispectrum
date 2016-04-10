@@ -44,13 +44,14 @@ classdef simplegettext < handle
 			obj.language = language_in;
 		end
 		
-		function str_tr = translate(obj, str_eng)
+		function [str_tr, is_translation_found] = translate(obj, str_eng)
 			if isa(str_eng,'cell')
-				str_tr = cellfun(@(x) obj.translate(x), str_eng, 'UniformOutput',false);
+				[str_tr is_translation_found] = cellfun(@(x) obj.translate(x), str_eng, 'UniformOutput',false);
 				return
 			end
 
 			str_tr = str_eng;
+			is_translation_found = false;
 
 			if ~isa(str_eng,'char') || isempty(obj.messages) || isempty(str_eng)
 				return
@@ -67,6 +68,36 @@ classdef simplegettext < handle
 			end
 
 			str_tr = obj.messages(msg_ind).translates{transl_ind, 2};
+			is_translation_found = true;
+		end
+		
+		function translate_ui(obj,hObject,is_report_unfound)
+			if nargin<3
+				is_report_unfound = false;
+			end
+
+			ch_list = get(hObject,'Children');
+			for ci = 1:numel(ch_list)
+				translate_ui(obj,ch_list(ci),is_report_unfound);
+			end
+
+			fl_name = '';
+			if strcmp(get(hObject,'Type'),'uipanel')
+				fl_name = 'Title';
+			end
+			if strcmp(get(hObject,'Type'),'uicontrol') && ...
+				any(strcmp(get(hObject,'Style'),{'text','pushbutton','checkbox'}))
+					fl_name = 'String';
+			end
+			if ~isempty(fl_name)
+				str_eng = get(hObject,fl_name);
+				[str_tr, is_translation_found] = obj.translate(str_eng);
+				if is_translation_found
+					set(hObject,fl_name,str_tr);
+				elseif is_report_unfound
+					disp(sprintf('Translation not found:\n%s\n',str_eng)); %#ok<DSPS>
+				end
+			end
 		end
 	end
 end
