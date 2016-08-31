@@ -7,7 +7,7 @@ function [f0_freq, f0_time, f0_tone]=sfs_rapt(x, fs)
 %   x - signal
 %   fs - sampling frequency
 
-%   Copyright Давыдов Андрей (andrew.aka.manik@gmail.com).
+%   Copyright Andrei Davydov (agdavydov81@gmail.com).
 %   Revision: 1.0.13
 
 	tmp_dir=tempname();
@@ -29,14 +29,22 @@ function [f0_freq, f0_time, f0_tone]=sfs_rapt(x, fs)
 	end
 	if isnumeric(x)
 		x(:,2:end) = [];
-		wavwrite(x,fs,16,tmp_wav);
+		if exist('audiowrite','file') == 2
+			audiowrite(tmp_wav,x,fs);
+		else
+			wavwrite(x,fs,16,tmp_wav);
+		end
 	end
 	if ~exist('fs','var')
 		if exist('libsndfile_read','file')
 			x_info = libsndfile_info(tmp_wav);
 			fs = x_info.SampleRate;
 		else
-			[~,fs] = wavread(tmp_wav);
+			if exist('audioread','file') == 2
+				[~,fs] = audioread(tmp_wav);
+			else
+				[~,fs] = wavread(tmp_wav);
+			end
 		end
 	end
 

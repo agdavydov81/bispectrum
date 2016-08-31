@@ -117,7 +117,7 @@ end
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = phase_analysis_dlg_OutputFcn(hObject, eventdata, handles) 
+function varargout = phase_analysis_dlg_OutputFcn(hObject, eventdata, handles) %#ok<*INUSL,*INUSD,*DEFNU>
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -249,7 +249,11 @@ function btn_calc_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 	filename=get(handles.ed_filename,'String');
 	[cur_path,cur_name,cur_ext]=fileparts(filename);
-	[x,fs_x]=wavread(filename);
+	if exist('audioread','file') == 2
+		[x,fs_x]=audioread(filename);	
+	else
+		[x,fs_x]=wavread(filename);
+	end
 	x(:,2:end)=[];
 	
 	eval_str = cellstr(get(handles.ed_func,'String'));
@@ -294,7 +298,11 @@ function btn_calc_Callback(hObject, eventdata, handles)
 		for ch=1:numel(alg.phase.mul)
 			cur_ch=harm_x(:,ch);
 			cur_ch(isnan(cur_ch))=0;
-			wavwrite(cur_ch, harm_fs, 32, [new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav']);
+			if exist('audiowrite','file') == 2
+				audiowrite([new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav'], cur_ch, harm_fs, 'BitsPerSample',32);
+			else
+				wavwrite(cur_ch, harm_fs, 32, [new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav']);
+			end
 		end
 	end
 
