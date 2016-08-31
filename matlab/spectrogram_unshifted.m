@@ -1,4 +1,19 @@
 function varargout = spectrogram_unshifted(varargin)
+%SPECTROGRAM_UNSHIFTED Unshifted version of spectrogram function
+%   This is unshifted version of SPECTROGRAM function. The only difference
+%   from the SPECTROGRAM function is the phase spectrum calculation method.
+%   The SPECTROGRAM function calculates all frames FFT independently. This
+%   lead all spectrum estimations have different time scales (on every
+%   frame the 0'th time point correspond to first data point). This lead to
+%   uncomparable results.
+%   To fix this issue there are two solutions. First solution: you can
+%   perform every data frame circular shift on this frame position number.
+%   Or (second solution) you can perform phase rotation (see the FFT shift
+%   theorem). In this function the second solution have used.
+%   For parameters see the SPECTROGRAM function description.
+%
+%   See also SPECTROGRAM
+
 	if nargout == 0
 		spectrogram(varargin{:});
 		return;
