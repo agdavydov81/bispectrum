@@ -5,7 +5,11 @@ function [harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs, alg)
 			return;
 		end
 		file_name=fullfile(dlg_path,dlg_name);
-		[x,fs] = wavread(file_name);
+		if exist('audioread','file') == 2
+			[x,fs] = audioread(file_name);
+		else
+			[x,fs] = wavread(file_name);
+		end
 	end
 	if size(x,2)>1
 		warning('phase_analysis:signaldimension','Поддерживаются только моно записи. Дополнительны каналы будут проигнорированы.');
