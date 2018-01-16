@@ -247,12 +247,18 @@ function btn_calc_Callback(hObject, eventdata, handles)
 % hObject    handle to btn_calc (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+Root = fullfile(fileparts(mfilename('fullpath')), '..');
+addpath(genpath(Root)); cd(Root);
+
 	filename=get(handles.ed_filename,'String');
 	[cur_path,cur_name,cur_ext]=fileparts(filename);
+    if strcmp(cur_ext, '') %Folder is assigned.
+        packetProc(hObject, eventdata, handles); return;
+    end
 	if exist('audioread','file') == 2
 		[x,fs_x]=audioread(filename);	
 	else
-		[x,fs_x]=wavread(filename);
+		[x,fs_x] = feval('wavread', filename);
 	end
 	x(:,2:end)=[];
 	
@@ -275,13 +281,13 @@ function btn_calc_Callback(hObject, eventdata, handles)
 										'side_band',	str2double(get(handles.ed_flt_sideband,'String')) )	);
 
 	try
-		if matlabpool('size')==0
+		if parpool('size')==0
 			local_jm=findResource('scheduler','type','local');
 			if local_jm.ClusterSize>1 && ... 
-				strcmp(questdlg({'No matlabpool opened.' ...
+				strcmp(questdlg({'No parpool opened.' ...
 					'Matlab pool usage can significantly increase analysis performance.' ...
-					'Open local matlabpool?'},'Parallel computations','Yes','No','Yes'),'Yes')
-				matlabpool('local');
+					'Open local parpool?'},'Parallel computations','Yes','No','Yes'),'Yes')
+				parpool('local');
 			end
 			pause(0.2);
 		end
@@ -301,7 +307,7 @@ function btn_calc_Callback(hObject, eventdata, handles)
 			if exist('audiowrite','file') == 2
 				audiowrite([new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav'], cur_ch, harm_fs, 'BitsPerSample',32);
 			else
-				wavwrite(cur_ch, harm_fs, 32, [new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav']);
+				feval('wavwrite', cur_ch, harm_fs, 32, [new_path filesep cur_name '_harm' num2str(alg.phase.mul(ch)) '.wav']);
 			end
 		end
 	end
@@ -330,6 +336,13 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	set(subplot_sgnl, 'XTickLabel',[]);
 %	xlabel('Время, с');
 %	ylabel('Сигнал');
+    idx = strfind(eval_str, '[');
+    idx = find(cellfun(@(x) nnz(x), idx)); evs = eval_str{idx};
+    idx1 = strfind(evs, '['); idx2 = strfind(evs, ']');
+    evs = evs(idx1+1:idx2-1); evs = strsplit(evs, ',');
+    legendos = arrayfun(@(x) num2str(x), 1:numel(evs), 'UniformOutput', false);
+    evs = cellfun(@(x, y) sprintf('%s (%d)', x, y), evs, num2cell(1:numel(evs)), 'UniformOutput', false);
+    evs = strjoin(evs, ','); eval_str{idx} = [eval_str{idx}(1:idx1) evs eval_str{idx}(idx2:end)];
 	title({filename eval_str{:}}, 'Interpreter','none');
 	
 	subplot_spectrogram=axes('Units','normalized', 'Position',[0.05 0.6 0.93 0.18]);
@@ -338,9 +351,10 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	[sp_s, sp_f, sp_t]=spectrogram(x, frame_size, frame_size-frame_shift, 2^nextpow2(round(alg.pitch.frame_size*fs_x)), fs_x);
 	imagesc(sp_t,sp_f,20*log10(abs(sp_s)));
 	axis('xy');
-	y_lim=ylim();
-	ylim([y_lim(1) min(2000,y_lim(2))]);
+	y_lim=ylim(); x_lim=xlim();
+	ylm = min(2000,y_lim(2)); ylim([y_lim(1) ylm]);
 	set(subplot_spectrogram, 'XTickLabel',[]);
+    text(x_lim(2)/2*0.8, ylm+100, sprintf( 'Spectrogram. Base frequency is %.2f.', mean(f0_freq, 'omitnan') ), 'Color', 'Red');
 	
 	colormap(makecolormap([    0      1   1   1;  0.5      1   1   1;   1      0   0   0]));
 
@@ -358,7 +372,7 @@ function btn_calc_Callback(hObject, eventdata, handles)
 		y_marks_out=[y_marks_out '  ' cur_mark];
 	end
 %}
-	plot(harm_t,y);
+	plot(harm_t,y); legend(legendos);
 	caret(2)=line([0 0], ylim(), 'Color','r', 'LineWidth',2);
 	grid('on');
 %	ylabel('y');
@@ -384,6 +398,39 @@ function btn_calc_Callback(hObject, eventdata, handles)
 							'harm_phi',harm_phi, 'f0_freq',f0_freq, 'harm_x',harm_x, 'harm_fs',harm_fs, 'evals',y);
 	guidata(fig,data);
 	OnZoomPan(fig);
+    
+
+% --- Processing files from assigned directory.
+function packetProc(hObject, eventdata, handles)
+% hObject    handle to btn_calc (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+audioExts = {'.wav', '.ogg', '.flac', '.au', '.aiff', '.aif', '.aifc', '.mp3', '.m4a', '.mp4', '.mp4', '.m4v', '.wmv', '.avi'};
+Root = fullfile(fileparts(mfilename('fullpath')), '..');
+CheckDirs({'Out'}, Root);
+	dirName=get(handles.ed_filename, 'String');
+    %Get all audio files from directory.
+    path_to_files=Get_pathes(dirName);
+    path_to_files = cellfun(@(x) fullfile(dirName, x), path_to_files, 'UniformOutput', false);
+    lists = cell(size(path_to_files));
+    for i = 1:numel(path_to_files)
+        lists{i} = ValidList(path_to_files{i}, audioExts) ; %Audios list.
+        lists{i} = reshape(lists{i}, 1, []);
+    end
+    %Make full file names list.
+    lists = [lists{:}];
+    %==Process them one-by-one, save a picts&figs==
+    for i = 1:numel(lists)
+        set(handles.ed_filename, 'String', lists{i});
+        btn_calc_Callback(hObject, eventdata, handles);
+        [pth, fNm, ~] = fileparts(lists{i});
+        fld = strsplit(pth, filesep); fld = fld{end}; %Get the last folder name.
+        fNm = fullfile(Root, 'Out', [fld '_' fNm]);
+        saveas(gcf, [fNm '.fig'], 'fig');
+        saveas(gcf, [fNm '.jpg'], 'jpg');
+        close gcf
+    end
+    set(handles.ed_filename, 'String', dirName); %Restore input.
 
 function map=makecolormap(map_info)
 	map=zeros(64,3);
