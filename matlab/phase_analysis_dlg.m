@@ -295,13 +295,15 @@ addpath(genpath(Root)); cd(Root);
 	end
 
 	[harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs_x, alg);
+    alg.f0_freq = f0_freq; alg.harm_t = harm_t;
 
 	if get(handles.chk_harm_save,'Value')
 		new_path=get(handles.ed_harm_dir,'String');
 		if isempty(new_path)
 			new_path=cur_path;
-		end
-		for ch=1:numel(alg.phase.mul)
+        end
+        [new_path, iterations] = fileNmStrAnls(new_path, filename, fill_struct(alg, 'harm_phi', harm_phi, 'harmncs', harm_x));
+		for ch=iterations
 			cur_ch=harm_x(:,ch);
 			cur_ch(isnan(cur_ch))=0;
 			if exist('audiowrite','file') == 2
@@ -408,6 +410,8 @@ function packetProc(hObject, eventdata, handles)
 audioExts = {'.wav', '.ogg', '.flac', '.au', '.aiff', '.aif', '.aifc', '.mp3', '.m4a', '.mp4', '.mp4', '.m4v', '.wmv', '.avi'};
 Root = fullfile(fileparts(mfilename('fullpath')), '..');
 CheckDirs({'Out'}, Root);
+MatName = fullfile(Root, 'Out', 'phaseMeasures.mat');
+MATOBJ = matfile(MatName, 'Writable', true);
 	dirName=get(handles.ed_filename, 'String');
     %Get all audio files from directory.
     path_to_files=Get_pathes(dirName);
@@ -428,6 +432,22 @@ CheckDirs({'Out'}, Root);
         fNm = fullfile(Root, 'Out', [fld '_' fNm]);
         saveas(gcf, [fNm '.fig'], 'fig');
         saveas(gcf, [fNm '.jpg'], 'jpg');
+        result.eval_str = cellstr(get(handles.ed_func, 'String')); %Formulas of intercomponent measures.
+        data = guidata(gcf);
+        evals = data.user_data.evals;
+        evals(any(isnan(evals),2),:)=[];
+        result.evals = evals; %Intercomponent measures vectors.
+        result.f0_freq = data.user_data.f0_freq; %Instant base frequency vector.
+        %Set dictor and letter.
+        [~, ~, ext] = fileparts(lists{i});
+        highPath = strrep(lists{i}, fullfile(dirName, filesep), '');
+        flds = strsplit(highPath, filesep);
+        if numel(flds) == 2
+            result.dictor = flds{end-1}; result.letter = strrep(flds{end}, ['.' ext], '');
+        else
+            result.dictor = strrep(flds{end}, ['.' ext], ''); result.letter = 'phrase';
+        end
+        MATOBJ.result(1, i) = result;
         close gcf
     end
     set(handles.ed_filename, 'String', dirName); %Restore input.
@@ -522,9 +542,19 @@ function CallbackPlayStop(obj, event, string_arg)
 
 function y=func_eval_block(t, F0, phi, x, fs, alg, eval_str)
 	for ch=1:numel(alg.phase.mul)
+        lB = phi(1, ch); rB = phi(end, ch); %Left and right phase samples.
+        step = (rB-lB)/size(phi, 1);
+        submtVctr = lB:step:rB-step; submtVctr = submtVctr-lB;
+        phi(:, ch) = phi(:, ch)-submtVctr';
+    end
+	for ch=1:numel(alg.phase.mul)
 		eval(['x' num2str(alg.phase.mul(ch)) '=x(:,ch);']);
 		eval(['phi' num2str(alg.phase.mul(ch)) '=phi(:,ch);']);
-	end
+    end
+    baseFr = mean(alg.f0_freq, 'omitnan');
+    tVect = (0:1/fs:size(phi, 1)/fs-1/fs)';
+    f0Vect = tVect*baseFr; %tVect(~isnan(alg.f0_freq))*baseFr;
+    f0Vect = f0Vect(1:size(phi, 1));
 
 	if isa(eval_str,'cell')
 		for eval_cell_ind=1:numel(eval_str)
