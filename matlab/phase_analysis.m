@@ -1,6 +1,6 @@
 function [harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs, alg)
 	if nargin<2
-		[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Выберите файл для обработки');
+		[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Select file for processing');
 		if dlg_name==0
 			return;
 		end
@@ -12,7 +12,7 @@ function [harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs, alg)
 		end
 	end
 	if size(x,2)>1
-		warning('phase_analysis:signaldimension','Поддерживаются только моно записи. Дополнительны каналы будут проигнорированы.');
+		warning('phase_analysis:signaldimension','Only mono recordings are supported. Additional channels will be ignored.');
 		x(:,2:end)=[];
 	end
 
@@ -27,9 +27,9 @@ function [harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs, alg)
 end
 
 function [phs_phi, phs_x, harm_fs, harm_t]=get_phase(x, fs, f0_freq, alg)
-%	phs_phi - графики полной фазы каждой выделяемой гармоники
-%	phs_x   - графики каждой выделяемой гармоники
-%	fs_out  - частота дискретизации выделямых phs_phi и phs_x
+%	phs_phi - the full phase tracks of each harmonic emitted
+%	phs_x   - the each harmonic emitted
+%	fs_out  - sampling frequency of the emmited phs_phi и phs_x
 
 	ord2=round(alg.phase.filt.frame_size*fs/2);
 	ord=ord2*2+1;
@@ -56,6 +56,9 @@ function [phs_phi, phs_x, harm_fs, harm_t]=get_phase(x, fs, f0_freq, alg)
 	nan_ind=any(isnan(f0_freq_buf));
 	f0_freq_buf(:,nan_ind)=[];
 	x_buf(:,nan_ind)=[];
+	if isempty(x_buf)
+		msgbox('Can'' find fundamental frequency regions in this file.', 'F0 Error', 'error');
+	end
 
 	alg_phase_mul_pf=alg.phase.mul;
 	alg_phase_filt_type=alg.phase.filt.type;
@@ -178,18 +181,18 @@ function r=findmaxval(x,y)
 	pd=polyder(pp);
 	pr=roots(pd);
 
-	pr(imag(pr)~=0)=[]; % Только действительные корни
+	pr(imag(pr)~=0)=[]; % Only real roots
 
 	if not(isempty(pr))
-		pr=sort(pr);        % Только максимумы полинома
+		pr=sort(pr);        % Only polynomial maxima
 		pdv=sign(polyval(pd, [pr(1)-1; (pr(1:end-1)+pr(2:end))/2; pr(end)+1]));
 		pr(pdv(1:end-1)-pdv(2:end)~=2)=[];
 	end
 
-	pr(pr<x(1) | pr>x(end))=[]; % Только в диапазоне интерполяции
+	pr(pr<x(1) | pr>x(end))=[]; % Only in the interpolation range
 
 	if not(isempty(pr))
-		[tmp_val, mi]=max(polyval(pp(end:-1:1), pr)); % Полюс с максимальной амплитудой
+		[tmp_val, mi]=max(polyval(pp(end:-1:1), pr)); % Pole with maximum amplitude
 		r=pr(mi);
 	else
 		r=max(x);
@@ -219,8 +222,7 @@ function [f0_freq, f0_time, f0_tone]=get_raw_pitch(x,fs)
 end
 
 
-%Определение гармонических параметров при помощи частотно-модулированного
-%фильтра анализа (Илья Азаров)
+%Determination of harmonic parameters using frequency-modulated analysis filter (Elias Azarov)
 function [Amp,Frc,Phs]=TakeHParamsXflc(Frame,FC,FD,Dt,X) % harmonic parameters estimation within specified bandwidth
 	%      Frame is the frame to analyze (odd value)
 	%      FC is the centre frequency of the filter (in Hz)
@@ -297,8 +299,7 @@ function [Amp,Frc,Phs]=TakeHParamsXflc(Frame,FC,FD,Dt,X) % harmonic parameters e
 	Phs=dx(1);
 end
 
-%Вычисление гармонических парамеров при помощи стационарного фильтра
-%анализа (Илья Азаров)
+%Calculation of harmonic parameters using a stationary analysis filter (Elias Azarov)
 function [Amp,Frc,Phs]=TakeHParamsX_turbo(Frame,FC,FD,Dt,X)
 	%      Frame is the frame to analyze (odd value)
 	%      FC is the centre frequency of the filter (in Hz)
