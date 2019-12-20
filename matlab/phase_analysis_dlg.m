@@ -289,6 +289,10 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	end
 
 	[harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs_x, alg);
+	if isempty(harm_phi)
+		msgbox('Can'' find fundamental frequency regions in this file.', 'F0 Error', 'error', 'modal');
+		return
+	end
 
 	if get(handles.chk_harm_save,'Value')
 		new_path=get(handles.ed_harm_dir,'String');

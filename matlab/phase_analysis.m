@@ -57,7 +57,9 @@ function [phs_phi, phs_x, harm_fs, harm_t]=get_phase(x, fs, f0_freq, alg)
 	f0_freq_buf(:,nan_ind)=[];
 	x_buf(:,nan_ind)=[];
 	if isempty(x_buf)
-		msgbox('Can'' find fundamental frequency regions in this file.', 'F0 Error', 'error');
+		phs_phi = [];
+		phs_x = [];
+		return
 	end
 
 	alg_phase_mul_pf=alg.phase.mul;
