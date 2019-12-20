@@ -155,7 +155,7 @@ function btn_filename_sel_Callback(hObject, eventdata, handles)
 % hObject    handle to btn_filename_sel (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-	[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Выберите файл для обработки', get(handles.ed_filename,'String'));
+	[dlg_name,dlg_path]=uigetfile({'*.wav','Wave files (*.wav)'},'Select a file for processing', get(handles.ed_filename,'String'));
 	if dlg_name==0
 		return;
 	end
@@ -205,7 +205,7 @@ function btn_harm_dir_sel_Callback(hObject, eventdata, handles)
 % hObject    handle to btn_harm_dir_sel (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-	dlg_name=uigetdir(get(handles.ed_harm_dir,'String'), 'Выберите директорию для сохранения гармоник основного тона');
+	dlg_name=uigetdir(get(handles.ed_harm_dir,'String'), 'Select the harmonics of the fundamental frequency output directory.');
 	if dlg_name==0
 		return;
 	end
@@ -328,8 +328,8 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	caret(1)=line([0 0], ylim(), 'Color','r', 'LineWidth',2);
 	grid('on');
 	set(subplot_sgnl, 'XTickLabel',[]);
-%	xlabel('Время, с');
-%	ylabel('Сигнал');
+%	xlabel('Time, sec');
+%	ylabel('Signal');
 	title({filename eval_str{:}}, 'Interpreter','none');
 	
 	subplot_spectrogram=axes('Units','normalized', 'Position',[0.05 0.6 0.93 0.18]);
@@ -362,7 +362,7 @@ function btn_calc_Callback(hObject, eventdata, handles)
 	caret(2)=line([0 0], ylim(), 'Color','r', 'LineWidth',2);
 	grid('on');
 %	ylabel('y');
-%	xlabel('Время, с');
+%	xlabel('Time, sec');
 
 	set(zoom,'ActionPostCallback',@OnZoomPan);
 	set(pan ,'ActionPostCallback',@OnZoomPan);
