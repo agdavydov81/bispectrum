@@ -88,22 +88,22 @@ outPhs(tbl, result, 'vishniakov', 'u', 1, phsN, fullfile(outPth, 'vshkov.jpg'));
 dict1 = {'pankratenko', 'pankratenko', 'pankratenko', 'pankratenko', 'pankratenko'};
 snds1 = {'a', 'a', 'a', 'a', 'a'}; phiNms = [1 2 3 1 2]; rlzns = [1 1 1 2 2];
 [phis, ts] = outPhs(tbl, result, dict1, snds1, rlzns, phiNms, fullfile(outPth, 'pankko_a12.jpg'));
-plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_pa2_pa1.jpg')); %There is a ...
-plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'pa2_pa1_pa1.jpg')); %Three symbols code ...
+plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_pa2_pa1.jpg'), 'linear, median'); %There is a ...
+plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'pa2_pa1_pa1.jpg'), 'linear, median'); %Three symbols code ...
 %=Take intercomponents for realisations of the one dictor. Plot and avg/std.=
 dict1 = {'pankratenko', 'pankratenko', 'pankratenko', 'pankratenko', 'pankratenko'};
 snds1 = {'a', 'a', 'a', 'e', 'e'}; phiNms = [1 2 3 1 2]; rlzns = ones(1, 5);
 [phis, ts] = outPhs(tbl, result, dict1, snds1, rlzns, phiNms, fullfile(outPth, 'pankko_a1_e1.jpg'));
-plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_pe1_pa1.jpg')); %Dictor, letter (sound), ...
-plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'pe1_pa1_pa1.jpg')); %Realization number.
-dict2 = {'pankratenko', 'pankratenko', 'pankratenko', 'vishniakov', 'vishniakov'};
+plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_pe1_pa1.jpg'), 'linear, median'); %Dictor, letter (sound), ...
+plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'pe1_pa1_pa1.jpg'), 'linear, median'); %Realization number.
+dict1 = {'pankratenko', 'pankratenko', 'pankratenko', 'vishniakov', 'vishniakov'};
 snds1 = {'a', 'a', 'a', 'a', 'a'}; phiNms = [1 2 3 1 2]; rlzns = [1 1 1 2 2];
 [phis, ts] = outPhs(tbl, result, dict1, snds1, rlzns, phiNms, fullfile(outPth, 'pankko_a1_vshkov_a2.jpg'));
-plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_va2_pa1.jpg'));
-plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'va2_pa1_pa1.jpg'));
+plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_va2_pa1.jpg'), 'linear, median');
+plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 'va2_pa1_pa1.jpg'), 'linear, median');
 %=Take intercomponents for realisations of the different sounds and dictors. Plot and avg/std.=
-dict2 = {'pankratenko', 'pankratenko', 'pankratenko', 'vishniakov', 'vishniakov'};
+dict1 = {'pankratenko', 'pankratenko', 'pankratenko', 'vishniakov', 'vishniakov'};
 snds1 = {'a', 'a', 'a', 'e', 'e'}; phiNms = [1 2 3 1 2]; rlzns = ones(1, 5);
 [phis, ts] = outPhs(tbl, result, dict1, snds1, rlzns, phiNms, fullfile(outPth, 'pankko_a1_vshkov_e1.jpg'));
-plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_ve1_pa1.jpg'));
-plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 've1_pa1_pa1.jpg'));
+plotIntcpts(phis([1 5 3]), ts([1 5 3]), formulas, fullfile(outPth, 'pa1_ve1_pa1.jpg'), 'linear, median');
+plotIntcpts(phis([4 2 3]), ts([4 2 3]), formulas, fullfile(outPth, 've1_pa1_pa1.jpg'), 'linear, median');

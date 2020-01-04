@@ -425,6 +425,7 @@ MATOBJ = matfile(MatName, 'Writable', true);
     lists = [lists{:}];
     %==Process them one-by-one, save a picts&figs==
     for i = 1:numel(lists)
+    try
         set(handles.ed_filename, 'String', lists{i});
         btn_calc_Callback(hObject, eventdata, handles);
         [pth, fNm, ~] = fileparts(lists{i});
@@ -449,6 +450,11 @@ MATOBJ = matfile(MatName, 'Writable', true);
         end
         MATOBJ.result(1, i) = result;
         close gcf
+        fprintf('File %s successful processed.\n', lists{i});
+    catch exception
+        fprintf('File %s processing error.\n', lists{i});
+        fprintf('Msg:\n%s\n\n', exception.getReport('extended', 'hyperlinks', 'on'));
+    end
     end
     set(handles.ed_filename, 'String', dirName); %Restore input.
 
