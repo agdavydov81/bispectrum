@@ -243,15 +243,20 @@ end
 
 
 % --- Executes on button press in btn_calc.
-function btn_calc_Callback(hObject, eventdata, handles)
+function fig = btn_calc_Callback(hObject, eventdata, handles)
 % hObject    handle to btn_calc (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-Root = fullfile(fileparts(mfilename('fullpath')), '..');
-addpath(genpath(Root)); cd(Root);
+Root = getRootFolder();
+addpath(genpath(Root)); %cd(Root);
+fig = [];
 
 	filename=get(handles.ed_filename,'String');
 	[cur_path,cur_name,cur_ext]=fileparts(filename);
+    if isempty(cur_path)
+        cur_path = fullfile(Root, 'In');
+        filename = fullfile(cur_path, filename);
+    end
     if strcmp(cur_ext, '') %Folder is assigned.
         packetProc(hObject, eventdata, handles); return;
     end
@@ -295,6 +300,10 @@ addpath(genpath(Root)); cd(Root);
 	end
 
 	[harm_phi, f0_freq, harm_x, harm_fs, harm_t]=phase_analysis(x, fs_x, alg);
+	if isempty(harm_phi)
+		warning('Can''t find fundamental frequency regions in this file.');
+		return
+	end
     alg.f0_freq = f0_freq; alg.harm_t = harm_t;
 
 	if get(handles.chk_harm_save,'Value')
@@ -351,12 +360,24 @@ addpath(genpath(Root)); cd(Root);
 	frame_size=round(alg.pitch.frame_size*fs_x);
 	frame_shift=max(1,round(alg.pitch.frame_shift*fs_x));
 	[sp_s, sp_f, sp_t]=spectrogram(x, frame_size, frame_size-frame_shift, 2^nextpow2(round(alg.pitch.frame_size*fs_x)), fs_x);
+    %Plot spectrogram
 	imagesc(sp_t,sp_f,20*log10(abs(sp_s)));
+    hold on;
+    %Plot estimated instantaneous frequencies.
+    [~, idxs] = unique(alg.phase.mul); %Unique harmonics numbers.
+    freqz = [NaN(1, nnz(idxs)); diff(harm_phi(:, idxs), 1)*harm_fs/(2*pi)];
+    plot(harm_t, freqz, '--');
+    dt = 1/fs_x;
+    t = (0:dt:length(x)*dt-dt)';
+    plot(t, f0_freq, 'r');
+    
 	axis('xy');
 	y_lim=ylim(); x_lim=xlim();
-	ylm = min(2000,y_lim(2)); ylim([y_lim(1) ylm]);
+    %Take the last harmpnic limit.
+	ylm = min([max(f0_freq*size(harm_phi, 2))*1.1, 2000, y_lim(2)]);
+    ylim([y_lim(1) ylm]);
 	set(subplot_spectrogram, 'XTickLabel',[]);
-    text(x_lim(2)/2*0.8, ylm+100, sprintf( 'Spectrogram. Base frequency is %.2f.', mean(f0_freq, 'omitnan') ), 'Color', 'Red');
+    text(x_lim(2)/2*0.8, ylm*1.05, sprintf( 'Spectrogram. Base frequency is %.2f.', mean(f0_freq, 'omitnan') ), 'Color', 'Red');
 	
 	colormap(makecolormap([    0      1   1   1;  0.5      1   1   1;   1      0   0   0]));
 
@@ -396,8 +417,8 @@ addpath(genpath(Root)); cd(Root);
 
 	data = guihandles(fig);
 	data.user_data = struct('player',player, 'btn_play',btn_play, 'x_len',(size(x,1)-1)/fs_x, 'zoom_axes',[subplot_sgnl subplot_spectrogram subplot_est], ...
-							'subplot_hist',subplot_hist, 'subplot_histd',subplot_histd, ...
-							'harm_phi',harm_phi, 'f0_freq',f0_freq, 'harm_x',harm_x, 'harm_fs',harm_fs, 'evals',y);
+							'subplot_hist',subplot_hist, 'subplot_histd',subplot_histd, 'alg', alg, ...
+							'harm_phi',harm_phi, 'f0_freq',f0_freq, 'harm_x',harm_x, 'harm_fs',harm_fs, 'evals',y,'fs', fs_x);
 	guidata(fig,data);
 	OnZoomPan(fig);
     
@@ -408,7 +429,7 @@ function packetProc(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 audioExts = {'.wav', '.ogg', '.flac', '.au', '.aiff', '.aif', '.aifc', '.mp3', '.m4a', '.mp4', '.mp4', '.m4v', '.wmv', '.avi'};
-Root = fullfile(fileparts(mfilename('fullpath')), '..');
+Root = getRootFolder();
 CheckDirs({'Out'}, Root);
 MatName = fullfile(Root, 'Out', 'phaseMeasures.mat');
 MATOBJ = matfile(MatName, 'Writable', true);
@@ -506,11 +527,22 @@ function OnZoomPan(hObject, eventdata)
 	set(data.user_data.subplot_hist, 'XTick',0:6);
 	grid(data.user_data.subplot_hist, 'on');
 	ylabel(data.user_data.subplot_hist, '2*Pi warped Y distribution');
+    
+    %Estimate harmonics frequencies at zoomed part and compute their statistics.
+    [~, idxs] = unique(data.user_data.alg.phase.mul); %Unique harmonics numbers.
+	phases=data.user_data.harm_phi(x_lim_smpl(1):x_lim_smpl(2), idxs);
+    freqz = [NaN(1, size(phases, 2)); diff(phases, 1)*data.user_data.harm_fs/(2*pi)];
+	freqz(any(isnan(freqz),2),:)=[];
+	stat_freq={	'Frequencies statistics:'
+				['mean: ' sprintf('%.2f  ',mean(freqz))]
+				['median: ' sprintf('%.2f  ',median(freqz))]
+				['std: ' sprintf('%.2f  ',std(freqz))]};
 
 	stat_str={	'Y statistics:'
 				['mean: ' sprintf('%.2f  ',mean(evals))]
 				['median: ' sprintf('%.2f  ',median(evals))]
 				['std: ' sprintf('%.2f  ',std(evals))]};
+    stat_str = [stat_str; stat_freq];
 	title(data.user_data.subplot_hist, stat_str, 'Units','normalized', ...
 		'Position',[1.1 1 0], 'VerticalAlignment','top', 'HorizontalAlignment','left');
 
@@ -788,3 +820,12 @@ function ed_flt_frameshift_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+function Root = getRootFolder()
+Root = fullfile(fileparts(mfilename('fullpath')), '..');
+Folders = strsplit(Root, filesep);
+idxs2del = find(strcmp(Folders, '..'));
+idxs2del = [idxs2del idxs2del-1];
+idxs = setxor(idxs2del, 1:numel(Folders));
+Root = fullfile(Folders{idxs});

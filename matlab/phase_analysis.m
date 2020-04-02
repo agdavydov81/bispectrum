@@ -56,6 +56,11 @@ function [phs_phi, phs_x, harm_fs, harm_t]=get_phase(x, fs, f0_freq, alg)
 	nan_ind=any(isnan(f0_freq_buf));
 	f0_freq_buf(:,nan_ind)=[];
 	x_buf(:,nan_ind)=[];
+	if isempty(x_buf)
+		phs_phi = [];
+		phs_x = [];
+		return
+	end
 
 	alg_phase_mul_pf=alg.phase.mul;
 	alg_phase_filt_type=alg.phase.filt.type;
